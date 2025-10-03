@@ -1,0 +1,45 @@
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Node modules
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Next.js
+greeny-corner-frontend/.next/
+greeny-corner-frontend/out/
+greeny-corner-frontend/build/
+greeny-corner-frontend/.env*.local
+
+# Laravel
+greeny-corner-backend/vendor/
+greeny-corner-backend/.env
+greeny-corner-backend/storage/*.key
+greeny-corner-backend/storage/logs/
+greeny-corner-backend/storage/framework/
+greeny-corner-backend/storage/app/
+greeny-corner-backend/bootstrap/cache/
+greeny-corner-backend/composer.phar
+greeny-corner-backend/greeny_corner
+
+# AI Models - Exclude entire folders from GitHub
+houseplant-ai-model/
+plant-disease-classifier/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log

@@ -1,0 +1,83 @@
+<svg width="120" height="40" viewBox="0 0 120 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Water animation keyframes -->
+    <style>
+      @keyframes waterDrop {
+        0% { transform: translateY(-5px); opacity: 0; }
+        50% { transform: translateY(0px); opacity: 1; }
+        100% { transform: translateY(15px); opacity: 0; }
+      }
+      
+      @keyframes leafSway {
+        0%, 100% { transform: rotate(-30deg); }
+        50% { transform: rotate(-35deg); }
+      }
+      
+      @keyframes leafSwayRight {
+        0%, 100% { transform: rotate(30deg); }
+        50% { transform: rotate(35deg); }
+      }
+      
+      
+      @keyframes flowerGlow {
+        0%, 100% { fill: #FF69B4; }
+        50% { fill: #FF1493; }
+      }
+      
+      .water-drop {
+        animation: waterDrop 2s infinite;
+      }
+      
+      .water-drop:nth-child(2) {
+        animation-delay: 0.5s;
+      }
+      
+      .water-drop:nth-child(3) {
+        animation-delay: 1s;
+      }
+      
+      .leaf-left {
+        animation: leafSway 3s ease-in-out infinite;
+        transform-origin: 9px 22px;
+      }
+      
+      .leaf-right {
+        animation: leafSwayRight 3s ease-in-out infinite;
+        transform-origin: 15px 22px;
+      }
+      
+      
+      .flower-bloom {
+        animation: flowerGlow 2s ease-in-out infinite;
+      }
+    </style>
+  </defs>
+  
+  <!-- Plant pot -->
+  <path d="M8 32 L6 38 L18 38 L16 32 Z" fill="#8B4513" stroke="#654321" stroke-width="1"/>
+  
+  <!-- Main stem -->
+  <line x1="12" y1="32" x2="12" y2="20" stroke="#228B22" stroke-width="2"/>
+  
+  <!-- Animated leaves -->
+  <ellipse class="leaf-left" cx="9" cy="22" rx="3" ry="6" fill="#32CD32" transform="rotate(-30 9 22)"/>
+  <ellipse class="leaf-right" cx="15" cy="22" rx="3" ry="6" fill="#228B22" transform="rotate(30 15 22)"/>
+  <ellipse cx="7" cy="26" rx="2.5" ry="5" fill="#90EE90" transform="rotate(-45 7 26)"/>
+  <ellipse cx="17" cy="26" rx="2.5" ry="5" fill="#90EE90" transform="rotate(45 17 26)"/>
+  
+  <!-- Small flower -->
+  <circle class="flower-bloom" cx="12" cy="18" r="2" fill="#FF69B4"/>
+  <circle cx="12" cy="18" r="1" fill="#FFD700"/>
+  
+  <!-- Water drops animation -->
+  <g class="water-drops">
+    <circle class="water-drop" cx="12" cy="12" r="1" fill="#4DD0E1" opacity="0"/>
+    <circle class="water-drop" cx="10" cy="10" r="0.8" fill="#26C6DA" opacity="0"/>
+    <circle class="water-drop" cx="14" cy="11" r="0.9" fill="#00BCD4" opacity="0"/>
+  </g>
+  
+  
+  <!-- Text -->
+  <text x="28" y="24" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#228B22">Greeny</text>
+  <text x="28" y="36" font-family="Arial, sans-serif" font-size="10" fill="#666">Corner</text>
+</svg>
