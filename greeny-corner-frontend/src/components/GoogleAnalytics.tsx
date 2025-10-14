@@ -1,34 +1,24 @@
 'use client';
 
-import Script from 'next/script';
+import { useEffect } from 'react';
+import { usePathname, useSearchParams } from 'next/navigation';
 
 export default function GoogleAnalytics() {
-  const measurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const measurementId = process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID;
 
-  if (!measurementId) {
-    return null;
-  }
+  useEffect(() => {
+    if (!measurementId) return;
 
-  return (
-    <>
-      <Script
-        strategy="afterInteractive"
-        src={`https://www.googletagmanager.com/gtag/js?id=${measurementId}`}
-      />
-      <Script
-        id="google-analytics"
-        strategy="afterInteractive"
-        dangerouslySetInnerHTML={{
-          __html: `
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('js', new Date());
-            gtag('config', '${measurementId}', {
-              page_path: window.location.pathname,
-            });
-          `,
-        }}
-      />
-    </>
-  );
+    // Firebase Analytics is already initialized through Firebase SDK
+    // This just tracks page views
+    if (typeof window !== 'undefined' && (window as any).gtag) {
+      (window as any).gtag('config', measurementId, {
+        page_path: pathname + searchParams?.toString(),
+      });
+    }
+  }, [pathname, searchParams, measurementId]);
+
+  return null; // Firebase Analytics is handled by Firebase SDK
 }

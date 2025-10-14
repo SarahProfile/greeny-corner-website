@@ -1,6 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, RecaptchaVerifier, signInWithPopup, signInWithPhoneNumber, PhoneAuthProvider } from 'firebase/auth';
 import { getMessaging, isSupported } from 'firebase/messaging';
+import { getAnalytics, logEvent, isSupported as isAnalyticsSupported } from 'firebase/analytics';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -17,6 +18,29 @@ const app = initializeApp(firebaseConfig);
 
 // Initialize Firebase Auth
 export const auth = getAuth(app);
+
+// Initialize Firebase Analytics (only on client side)
+let analytics: any = null;
+if (typeof window !== 'undefined') {
+  isAnalyticsSupported().then((supported) => {
+    if (supported) {
+      analytics = getAnalytics(app);
+      console.log('📊 Firebase Analytics initialized with ID:', process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID);
+    }
+  }).catch((err) => {
+    console.log('Analytics not supported:', err);
+  });
+}
+
+// Helper function to log custom events
+export const logAnalyticsEvent = (eventName: string, eventParams?: any) => {
+  if (analytics) {
+    logEvent(analytics, eventName, eventParams);
+  }
+};
+
+// Export analytics instance
+export { analytics };
 
 // Google Auth Provider
 export const googleProvider = new GoogleAuthProvider();
