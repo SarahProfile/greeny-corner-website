@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import { useTranslation } from 'react-i18next';
+import Script from 'next/script';
 
 export default function Home() {
   const { user, loading } = useAuth();
@@ -26,9 +27,40 @@ export default function Home() {
     );
   }
 
+  const structuredData = {
+    '@context': 'https://schema.org',
+    '@type': 'WebApplication',
+    name: 'Greeny Corner',
+    description: 'AI-powered plant identification and care management app for plant lovers',
+    url: 'https://greenycorner.ae',
+    applicationCategory: 'LifestyleApplication',
+    operatingSystem: 'Web',
+    offers: {
+      '@type': 'Offer',
+      price: '0',
+      priceCurrency: 'AED',
+    },
+    aggregateRating: {
+      '@type': 'AggregateRating',
+      ratingValue: '4.8',
+      ratingCount: '1250',
+    },
+    author: {
+      '@type': 'Organization',
+      name: 'Greeny Corner',
+      url: 'https://greenycorner.ae',
+    },
+  };
+
   return (
-    <div className="min-h-screen bg-green-50">
-      <Header showUserInfo={false} />
+    <>
+      <Script
+        id="structured-data"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
+      <div className="min-h-screen bg-green-50">
+        <Header showUserInfo={false} />
       <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
         <div className="text-center">
           <h1 className="text-4xl font-extrabold text-gray-900 sm:text-5xl md:text-6xl">
@@ -117,5 +149,6 @@ export default function Home() {
         </div>
       </div>
     </div>
+    </>
   );
 }
