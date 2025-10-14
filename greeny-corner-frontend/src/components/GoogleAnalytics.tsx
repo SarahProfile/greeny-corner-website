@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, Suspense } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 
-export default function GoogleAnalytics() {
+function GoogleAnalyticsComponent() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const measurementId = process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID;
@@ -20,5 +20,13 @@ export default function GoogleAnalytics() {
     }
   }, [pathname, searchParams, measurementId]);
 
-  return null; // Firebase Analytics is handled by Firebase SDK
+  return null;
+}
+
+export default function GoogleAnalytics() {
+  return (
+    <Suspense fallback={null}>
+      <GoogleAnalyticsComponent />
+    </Suspense>
+  );
 }
