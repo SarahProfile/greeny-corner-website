@@ -11,7 +11,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://greenycorner.ae'),
+  metadataBase: new URL('https://www.greenycorner.ae'),
   title: {
     default: 'Greeny Corner - Smart Plant Care & Identification App',
     template: '%s | Greeny Corner'
@@ -49,25 +49,54 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    url: 'https://greenycorner.ae',
+    alternateLocale: ['ar_AE'],
+    url: 'https://www.greenycorner.ae',
     title: 'Greeny Corner - Smart Plant Care & Identification App',
     description: 'AI-powered plant identification and care management. Track your plants, get watering reminders, and learn expert care tips.',
     siteName: 'Greeny Corner',
     images: [
       {
-        url: '/greeny-logo.svg',
+        url: 'https://www.greenycorner.ae/og-image.png',
+        secureUrl: 'https://www.greenycorner.ae/og-image.png',
         width: 1200,
         height: 630,
-        alt: 'Greeny Corner - Plant Care App',
+        alt: 'Greeny Corner - Smart Plant Care & Identification App',
+        type: 'image/png',
+      },
+      {
+        url: 'https://www.greenycorner.ae/greeny-logo.svg',
+        width: 1200,
+        height: 630,
+        alt: 'Greeny Corner Logo',
+        type: 'image/svg+xml',
       },
     ],
+    countryName: 'United Arab Emirates',
   },
   twitter: {
     card: 'summary_large_image',
+    site: '@greenycorner',
+    creator: '@greenycorner',
     title: 'Greeny Corner - Smart Plant Care & Identification App',
     description: 'AI-powered plant identification and care management. Track your plants and get watering reminders.',
-    images: ['/greeny-logo.svg'],
-    creator: '@greenycorner',
+    images: {
+      url: 'https://www.greenycorner.ae/og-image.png',
+      alt: 'Greeny Corner - Smart Plant Care & Identification App',
+    },
+  },
+  alternates: {
+    canonical: 'https://www.greenycorner.ae',
+    languages: {
+      'en-US': 'https://www.greenycorner.ae',
+      'ar-AE': 'https://www.greenycorner.ae/ar',
+    },
+  },
+  category: 'technology',
+  applicationName: 'Greeny Corner',
+  appleWebApp: {
+    capable: true,
+    title: 'Greeny Corner',
+    statusBarStyle: 'default',
   },
   robots: {
     index: true,
@@ -92,9 +121,6 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <head>
-        <link rel="canonical" href="https://greenycorner.ae" />
-      </head>
       <body
         className={`${inter.variable} font-sans antialiased`}
         suppressHydrationWarning={true}

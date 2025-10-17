@@ -32,7 +32,7 @@ export default function Home() {
     '@type': 'WebApplication',
     name: 'Greeny Corner',
     description: 'AI-powered plant identification and care management app for plant lovers',
-    url: 'https://greenycorner.ae',
+    url: 'https://www.greenycorner.ae',
     applicationCategory: 'LifestyleApplication',
     operatingSystem: 'Web',
     offers: {
@@ -48,7 +48,7 @@ export default function Home() {
     author: {
       '@type': 'Organization',
       name: 'Greeny Corner',
-      url: 'https://greenycorner.ae',
+      url: 'https://www.greenycorner.ae',
     },
   };
 

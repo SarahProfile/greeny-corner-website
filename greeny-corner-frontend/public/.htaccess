@@ -1,0 +1,11 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Force HTTPS
+    RewriteCond %{HTTPS} off
+    RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+    # Force www
+    RewriteCond %{HTTP_HOST} ^greenycorner\.ae$ [NC]
+    RewriteRule ^(.*)$ https://www.greenycorner.ae/$1 [L,R=301]
+</IfModule>
