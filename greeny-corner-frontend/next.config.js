@@ -1,9 +1,8 @@
-const { i18n } = require('./next-i18next.config');
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  i18n,
   /* config options here */
+  // Note: i18n config removed as it conflicts with App Router
+  // Translations are handled client-side via react-i18next
   async redirects() {
     return [
       {

@@ -49,7 +49,6 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    alternateLocale: ['ar_AE'],
     url: 'https://www.greenycorner.ae',
     title: 'Greeny Corner - Smart Plant Care & Identification App',
     description: 'AI-powered plant identification and care management. Track your plants, get watering reminders, and learn expert care tips.',
@@ -86,10 +85,6 @@ export const metadata: Metadata = {
   },
   alternates: {
     canonical: 'https://www.greenycorner.ae',
-    languages: {
-      'en-US': 'https://www.greenycorner.ae',
-      'ar-AE': 'https://www.greenycorner.ae/ar',
-    },
   },
   category: 'technology',
   applicationName: 'Greeny Corner',
