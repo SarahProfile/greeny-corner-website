@@ -14,6 +14,7 @@ export default function MyPlantsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [browserPermissionGranted, setBrowserPermissionGranted] = useState(false);
   const [showNotificationPrompt, setShowNotificationPrompt] = useState(false);
 
   const { user, logout, loading: authLoading } = useAuth();
@@ -49,8 +50,10 @@ export default function MyPlantsPage() {
 
   const checkNotificationPermission = async () => {
     const enabled = notificationService.getNotificationsEnabled();
+    const canSend = notificationService.canSendNotifications();
     setNotificationsEnabled(enabled);
-    if (enabled && !notificationService.canSendNotifications()) {
+    setBrowserPermissionGranted(canSend);
+    if (enabled && !canSend) {
       setShowNotificationPrompt(true);
     }
   };
@@ -65,13 +68,18 @@ export default function MyPlantsPage() {
       if (granted) {
         notificationService.setNotificationsEnabled(true);
         setNotificationsEnabled(true);
+        setBrowserPermissionGranted(true);
         setShowNotificationPrompt(false);
+
         if (plants.length > 0) {
           notificationService.checkOverduePlants(plants);
           notificationService.scheduleAllPlantNotifications(plants);
         }
       } else {
         // User denied permission
+        notificationService.setNotificationsEnabled(false);
+        setNotificationsEnabled(false);
+        setBrowserPermissionGranted(false);
         alert(t('plants.notificationDenied') || 'Notification permission was denied. Please enable it in your browser settings.');
         setShowNotificationPrompt(false);
       }
@@ -88,6 +96,7 @@ export default function MyPlantsPage() {
     }
     notificationService.setNotificationsEnabled(false);
     setNotificationsEnabled(false);
+    setBrowserPermissionGranted(false);
     setShowNotificationPrompt(false);
   };
 
@@ -168,17 +177,17 @@ export default function MyPlantsPage() {
               <button
                 onClick={() => setShowNotificationPrompt(true)}
                 className={`inline-flex items-center justify-center px-5 py-3 border-2 text-base font-semibold rounded-xl shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-200 ${
-                  notificationsEnabled && notificationService.canSendNotifications()
+                  notificationsEnabled && browserPermissionGranted
                     ? 'border-green-500 text-green-700 bg-green-50 hover:bg-green-100'
                     : 'border-orange-500 text-orange-700 bg-orange-50 hover:bg-orange-100'
                 }`}
                 title={notificationsEnabled ? t('plants.notificationSettings') || 'Notification Settings' : t('plants.enableNotifications')}
               >
                 <span className="text-2xl mr-2">
-                  {notificationsEnabled && notificationService.canSendNotifications() ? '🔔' : '🔕'}
+                  {notificationsEnabled && browserPermissionGranted ? '🔔' : '🔕'}
                 </span>
                 <span className="hidden sm:inline">
-                  {notificationsEnabled && notificationService.canSendNotifications()
+                  {notificationsEnabled && browserPermissionGranted
                     ? t('plants.notifications') || 'Notifications'
                     : t('plants.enableNotifications')}
                 </span>
@@ -366,14 +375,14 @@ export default function MyPlantsPage() {
               </div>
               <div className="ml-4">
                 <h3 className="text-2xl font-bold text-gray-900">
-                  {notificationsEnabled && notificationService.canSendNotifications()
+                  {notificationsEnabled && browserPermissionGranted
                     ? t('plants.notificationSettings') || 'Notification Settings'
                     : t('plants.enableNotifications')}
                 </h3>
               </div>
             </div>
             <div className="mb-6">
-              {notificationsEnabled && notificationService.canSendNotifications() ? (
+              {notificationsEnabled && browserPermissionGranted ? (
                 <div className="bg-green-50 border-l-4 border-green-400 p-4 mb-6 rounded-lg">
                   <div className="flex items-center">
                     <svg className="w-5 h-5 text-green-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
@@ -420,7 +429,7 @@ export default function MyPlantsPage() {
               </div>
             </div>
             <div className="flex space-x-3">
-              {notificationsEnabled && notificationService.canSendNotifications() ? (
+              {notificationsEnabled && browserPermissionGranted ? (
                 <>
                   <button
                     type="button"
