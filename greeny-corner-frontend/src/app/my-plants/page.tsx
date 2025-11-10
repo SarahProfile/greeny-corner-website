@@ -55,7 +55,11 @@ export default function MyPlantsPage() {
     }
   };
 
-  const enableNotifications = async () => {
+  const enableNotifications = async (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     try {
       const granted = await notificationService.requestPermission();
       if (granted) {
@@ -66,13 +70,22 @@ export default function MyPlantsPage() {
           notificationService.checkOverduePlants(plants);
           notificationService.scheduleAllPlantNotifications(plants);
         }
+      } else {
+        // User denied permission
+        alert(t('plants.notificationDenied') || 'Notification permission was denied. Please enable it in your browser settings.');
+        setShowNotificationPrompt(false);
       }
     } catch (error) {
       console.error('Error enabling notifications:', error);
+      alert(t('plants.notificationError') || 'Failed to enable notifications. Please try again.');
     }
   };
 
-  const disableNotifications = () => {
+  const disableNotifications = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     notificationService.setNotificationsEnabled(false);
     setNotificationsEnabled(false);
     setShowNotificationPrompt(false);
@@ -312,8 +325,19 @@ export default function MyPlantsPage() {
 
       {/* Notification Permission Modal */}
       {showNotificationPrompt && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
-          <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl transform animate-slideUp">
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn"
+          onClick={(e) => {
+            // Only close if clicking the backdrop itself
+            if (e.target === e.currentTarget) {
+              disableNotifications(e);
+            }
+          }}
+        >
+          <div
+            className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl transform animate-slideUp"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center mb-6">
               <div className="flex-shrink-0">
                 <div className="w-16 h-16 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-2xl flex items-center justify-center">
@@ -360,14 +384,16 @@ export default function MyPlantsPage() {
             </div>
             <div className="flex space-x-3">
               <button
+                type="button"
                 onClick={disableNotifications}
-                className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold py-3 px-6 rounded-xl transition-colors"
+                className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold py-3 px-6 rounded-xl transition-colors cursor-pointer"
               >
                 {t('plants.laterButton')}
               </button>
               <button
+                type="button"
                 onClick={enableNotifications}
-                className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all"
+                className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all cursor-pointer"
               >
                 {t('plants.enableButton')}
               </button>
