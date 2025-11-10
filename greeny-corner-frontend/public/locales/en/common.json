@@ -93,6 +93,7 @@
     "notificationDenied": "Notification permission was denied. Please enable it in your browser settings.",
     "notificationError": "Failed to enable notifications. Please try again.",
     "notificationIOSChrome": "Notifications are not supported in Chrome on iOS. Please use Safari browser to enable notifications.",
+    "notificationIOSSafari": "Notifications on Safari for iOS may require adding this website to your Home Screen first. Go to Share → Add to Home Screen, then open the app from your home screen and try again.",
     "notificationNotSupported": "Notifications are not supported in this browser. Please try using a different browser.",
     "myGarden": "My Garden",
     "startYourJourney": "Start your green journey",

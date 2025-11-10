@@ -75,21 +75,48 @@ export default function MyPlantsPage() {
     return /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
   };
 
+  const getIOSVersion = () => {
+    const match = navigator.userAgent.match(/OS (\d+)_(\d+)_?(\d+)?/);
+    if (match) {
+      return {
+        major: parseInt(match[1], 10),
+        minor: parseInt(match[2], 10),
+        patch: parseInt(match[3] || '0', 10)
+      };
+    }
+    return null;
+  };
+
   const enableNotifications = async (e?: React.MouseEvent) => {
     if (e) {
       e.preventDefault();
       e.stopPropagation();
     }
 
+    const isIOSDevice = isIOS();
+    const isSafariBrowser = isSafari();
+
+    // Log for debugging
+    console.log('Browser detection:', {
+      isIOS: isIOSDevice,
+      isSafari: isSafariBrowser,
+      hasNotification: 'Notification' in window,
+      userAgent: navigator.userAgent
+    });
+
     // Check if notifications are supported
     if (!('Notification' in window)) {
-      const isIOSDevice = isIOS();
-      const isSafariBrowser = isSafari();
-
       if (isIOSDevice && !isSafariBrowser) {
         alert(
           t('plants.notificationIOSChrome') ||
           'Notifications are not supported in Chrome on iOS. Please use Safari browser to enable notifications.'
+        );
+      } else if (isIOSDevice && isSafariBrowser) {
+        const iosVersion = getIOSVersion();
+        const versionText = iosVersion ? ` (iOS ${iosVersion.major})` : '';
+        alert(
+          t('plants.notificationIOSSafari') ||
+          `Notifications on Safari for iOS${versionText} may require adding this website to your Home Screen first. Go to Share → Add to Home Screen, then open the app from your home screen and try again.`
         );
       } else {
         alert(
