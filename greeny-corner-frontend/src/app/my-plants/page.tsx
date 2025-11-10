@@ -16,10 +16,18 @@ export default function MyPlantsPage() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [browserPermissionGranted, setBrowserPermissionGranted] = useState(false);
   const [showNotificationPrompt, setShowNotificationPrompt] = useState(false);
+  const [notificationsSupported, setNotificationsSupported] = useState(true);
 
   const { user, logout, loading: authLoading } = useAuth();
   const router = useRouter();
   const { t } = useTranslation();
+
+  useEffect(() => {
+    // Check if notifications are supported
+    if (typeof window !== 'undefined') {
+      setNotificationsSupported('Notification' in window);
+    }
+  }, []);
 
   useEffect(() => {
     if (authLoading) return;
@@ -58,11 +66,41 @@ export default function MyPlantsPage() {
     }
   };
 
+  const isIOS = () => {
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+           (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  };
+
+  const isSafari = () => {
+    return /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+  };
+
   const enableNotifications = async (e?: React.MouseEvent) => {
     if (e) {
       e.preventDefault();
       e.stopPropagation();
     }
+
+    // Check if notifications are supported
+    if (!('Notification' in window)) {
+      const isIOSDevice = isIOS();
+      const isSafariBrowser = isSafari();
+
+      if (isIOSDevice && !isSafariBrowser) {
+        alert(
+          t('plants.notificationIOSChrome') ||
+          'Notifications are not supported in Chrome on iOS. Please use Safari browser to enable notifications.'
+        );
+      } else {
+        alert(
+          t('plants.notificationNotSupported') ||
+          'Notifications are not supported in this browser. Please try using a different browser.'
+        );
+      }
+      setShowNotificationPrompt(false);
+      return;
+    }
+
     try {
       const granted = await notificationService.requestPermission();
       if (granted) {
@@ -174,24 +212,26 @@ export default function MyPlantsPage() {
               </p>
             </div>
             <div className="mt-4 sm:mt-0 flex flex-col sm:flex-row gap-3">
-              <button
-                onClick={() => setShowNotificationPrompt(true)}
-                className={`inline-flex items-center justify-center px-5 py-3 border-2 text-base font-semibold rounded-xl shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-200 ${
-                  notificationsEnabled && browserPermissionGranted
-                    ? 'border-green-500 text-green-700 bg-green-50 hover:bg-green-100'
-                    : 'border-orange-500 text-orange-700 bg-orange-50 hover:bg-orange-100'
-                }`}
-                title={notificationsEnabled ? t('plants.notificationSettings') || 'Notification Settings' : t('plants.enableNotifications')}
-              >
-                <span className="text-2xl mr-2">
-                  {notificationsEnabled && browserPermissionGranted ? '🔔' : '🔕'}
-                </span>
-                <span className="hidden sm:inline">
-                  {notificationsEnabled && browserPermissionGranted
-                    ? t('plants.notifications') || 'Notifications'
-                    : t('plants.enableNotifications')}
-                </span>
-              </button>
+              {notificationsSupported && (
+                <button
+                  onClick={() => setShowNotificationPrompt(true)}
+                  className={`inline-flex items-center justify-center px-5 py-3 border-2 text-base font-semibold rounded-xl shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-200 ${
+                    notificationsEnabled && browserPermissionGranted
+                      ? 'border-green-500 text-green-700 bg-green-50 hover:bg-green-100'
+                      : 'border-orange-500 text-orange-700 bg-orange-50 hover:bg-orange-100'
+                  }`}
+                  title={notificationsEnabled ? t('plants.notificationSettings') || 'Notification Settings' : t('plants.enableNotifications')}
+                >
+                  <span className="text-2xl mr-2">
+                    {notificationsEnabled && browserPermissionGranted ? '🔔' : '🔕'}
+                  </span>
+                  <span className="hidden sm:inline">
+                    {notificationsEnabled && browserPermissionGranted
+                      ? t('plants.notifications') || 'Notifications'
+                      : t('plants.enableNotifications')}
+                  </span>
+                </button>
+              )}
               <Link
                 href="/add-plant"
                 className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-xl text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
