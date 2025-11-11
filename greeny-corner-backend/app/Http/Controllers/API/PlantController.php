@@ -5,6 +5,7 @@ namespace App\Http\Controllers\API;
 use App\Http\Controllers\Controller;
 use App\Models\Plant;
 use App\Models\CareSchedule;
+use App\Services\TranslationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
@@ -12,6 +13,13 @@ use Carbon\Carbon;
 
 class PlantController extends Controller
 {
+    protected $translationService;
+
+    public function __construct(TranslationService $translationService)
+    {
+        $this->translationService = $translationService;
+    }
+
     public function index(Request $request)
     {
         $plants = $request->user()->plants()->with('careSchedule')->get();
@@ -368,6 +376,54 @@ class PlantController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Plant identification failed',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Refresh all user's plants with updated language translations
+     * This is called when the user changes their language preference
+     */
+    public function refreshPlantsLanguage(Request $request)
+    {
+        $validated = $request->validate([
+            'language' => 'required|string|in:en,ar'
+        ]);
+
+        $language = $validated['language'];
+
+        try {
+            // Get all user's plants
+            $plants = $request->user()->plants()->get();
+
+            // Update each plant's api_data with translated content
+            foreach ($plants as $plant) {
+                if ($plant->api_data) {
+                    $translatedData = $this->translatePlantData($plant->api_data, $language);
+                    $plant->update(['api_data' => $translatedData]);
+                }
+            }
+
+            \Log::info('Plants language refreshed', [
+                'user_id' => $request->user()->id,
+                'language' => $language,
+                'plant_count' => $plants->count()
+            ]);
+
+            return response()->json([
+                'message' => 'Plants refreshed successfully',
+                'language' => $language,
+                'count' => $plants->count()
+            ], 200);
+
+        } catch (\Exception $e) {
+            \Log::error('Failed to refresh plants language', [
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'message' => 'Failed to refresh plants',
                 'error' => $e->getMessage()
             ], 500);
         }
@@ -3474,13 +3530,21 @@ class PlantController extends Controller
         if ($targetLanguage === 'en' || !$plantData) {
             return $plantData;
         }
-        
-        // For Arabic translation, create a mapping of key terms
-        if ($targetLanguage === 'ar') {
-            return $this->translateToArabic($plantData);
+
+        // Use the TranslationService for automatic translation
+        // This will translate all text fields while preserving scientific names, IDs, etc.
+        try {
+            return $this->translationService->translatePlantData($plantData, $targetLanguage);
+        } catch (\Exception $e) {
+            \Log::error('Translation service failed: ' . $e->getMessage());
+
+            // Fallback to manual translation if service fails
+            if ($targetLanguage === 'ar') {
+                return $this->translateToArabic($plantData);
+            }
+
+            return $plantData;
         }
-        
-        return $plantData;
     }
     
     private function translateToArabic($plantData)
