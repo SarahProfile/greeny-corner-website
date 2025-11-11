@@ -161,7 +161,7 @@ export default function RegisterPage() {
           <h1 className="text-4xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent mb-2">
             {t('app.title')}
           </h1>
-          <p className="text-gray-600 font-medium">Track, Care & Grow Your Plants</p>
+          <p className="text-gray-600 font-medium">{t('common.tagline')}</p>
         </div>
 
         {/* Main Card */}
@@ -360,7 +360,7 @@ export default function RegisterPage() {
 
         {/* Footer */}
         <p className="mt-6 text-center text-sm text-gray-600 animate-slideUp" style={{animationDelay: '0.2s'}}>
-          Made with 🌿 for plant lovers everywhere
+          {t('footer.tagline')}
         </p>
       </div>
     </div>

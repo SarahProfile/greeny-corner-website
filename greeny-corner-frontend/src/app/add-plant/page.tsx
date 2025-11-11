@@ -498,19 +498,19 @@ export default function AddPlantPage() {
               </div>
             </div>
             <div className="ml-4">
-              <h3 className="text-lg font-bold text-gray-900 mb-2">💡 Tips for best results</h3>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">{t('addPlant.tipsTitle')}</h3>
               <ul className="text-sm text-gray-600 space-y-2">
                 <li className="flex items-start">
                   <span className="text-emerald-600 mr-2 mt-0.5">✓</span>
-                  <span>Take a clear photo of the plant's leaves in good lighting</span>
+                  <span>{t('addPlant.tipClearPhoto')}</span>
                 </li>
                 <li className="flex items-start">
                   <span className="text-emerald-600 mr-2 mt-0.5">✓</span>
-                  <span>Get close enough to see leaf details and patterns</span>
+                  <span>{t('addPlant.tipLeafDetails')}</span>
                 </li>
                 <li className="flex items-start">
                   <span className="text-emerald-600 mr-2 mt-0.5">✓</span>
-                  <span>Avoid blurry or dark images for accurate identification</span>
+                  <span>{t('addPlant.tipAvoidBlurry')}</span>
                 </li>
               </ul>
             </div>

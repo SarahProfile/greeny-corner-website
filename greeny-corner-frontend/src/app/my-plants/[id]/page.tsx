@@ -357,8 +357,8 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
                           : wateringStatus === 'today'
                           ? t('plants.waterToday')
                           : wateringStatus === 'soon'
-                          ? `Water in ${daysUntil} ${daysUntil === 1 ? 'day' : 'days'}`
-                          : `Water in ${daysUntil} days`}
+                          ? t('plantDetail.waterInDays', { days: daysUntil, daysText: daysUntil === 1 ? t('common.day') : t('common.daysPlural') })
+                          : t('plantDetail.waterInDays', { days: daysUntil, daysText: t('common.daysPlural') })}
                       </h3>
                       <p className="text-sm text-gray-600">
                         {formatDateTime(plant.care_schedule.next_watering_date)}
@@ -495,7 +495,7 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
                     <span className="text-sm font-semibold text-blue-900">{t('plantDetail.watering')}</span>
                   </div>
                   <p className="text-sm text-blue-700 font-medium">
-                    Every {plant.api_data.care_info.watering_interval_days} days
+                    {t('plantDetail.everyNDays', { days: plant.api_data.care_info.watering_interval_days })}
                   </p>
                 </div>
 
