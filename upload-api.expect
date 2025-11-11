@@ -1,0 +1,52 @@
+#!/usr/bin/expect -f
+
+set timeout 120
+log_user 1
+
+# Upload TranslationService.php
+spawn scp -o StrictHostKeyChecking=no greeny-corner-backend/app/Services/TranslationService.php u436103792@92.113.19.61:~/domains/greenycorner.com/public_html/app/Services/
+
+expect {
+    "*password:" {
+        send "Letmelogin123#\r"
+        expect {
+            "*100%" {
+                puts "\nTranslationService.php uploaded successfully"
+            }
+            timeout {
+                puts "\nTranslationService.php upload timeout"
+                exit 1
+            }
+        }
+    }
+    timeout {
+        puts "Connection timeout for TranslationService.php"
+        exit 1
+    }
+}
+
+expect eof
+
+# Upload PlantController.php
+spawn scp -o StrictHostKeyChecking=no greeny-corner-backend/app/Http/Controllers/API/PlantController.php u436103792@92.113.19.61:~/domains/greenycorner.com/public_html/app/Http/Controllers/API/
+
+expect {
+    "*password:" {
+        send "Letmelogin123#\r"
+        expect {
+            "*100%" {
+                puts "\nPlantController.php uploaded successfully"
+            }
+            timeout {
+                puts "\nPlantController.php upload timeout"
+                exit 1
+            }
+        }
+    }
+    timeout {
+        puts "Connection timeout for PlantController.php"
+        exit 1
+    }
+}
+
+expect eof

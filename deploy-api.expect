@@ -1,0 +1,15 @@
+#!/usr/bin/expect -f
+
+set timeout 30
+set password "Letmelogin123#"
+set host "u436103792@92.113.19.61"
+
+spawn ssh -o StrictHostKeyChecking=no $host "pwd && ls -la && find . -name 'public_html' -o -name 'domains' -o -name 'nabati' 2>/dev/null | head -20"
+
+expect {
+    "*password:" {
+        send "$password\r"
+        exp_continue
+    }
+    eof
+}

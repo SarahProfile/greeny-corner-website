@@ -104,11 +104,11 @@ export default function LoginPage() {
       } else if (err.code === 'auth/popup-blocked') {
         setError(t('auth.popupBlocked') + ' - Please enable popups in your browser settings');
       } else if (err.code === 'auth/network-request-failed') {
-        setError('Network error - please check your internet connection and try again');
+        setError(t('auth.networkError'));
       } else if (err.message && err.message.includes('timeout')) {
-        setError('Login timed out - please try again');
+        setError(t('auth.loginTimeout'));
       } else if (err.message && err.message.includes('Load failed')) {
-        setError('Failed to connect to Google - please check your internet connection');
+        setError(t('auth.googleConnectionFailed'));
       } else {
         setError(err.message || t('auth.googleLoginFailed'));
       }
@@ -203,15 +203,15 @@ export default function LoginPage() {
       console.error('❌ Email/password login failed:', err);
 
       if (err.code === 'auth/user-not-found') {
-        setError('No account found with this email address.');
+        setError(t('auth.noAccountFound'));
       } else if (err.code === 'auth/wrong-password') {
-        setError('Incorrect password.');
+        setError(t('auth.incorrectPassword'));
       } else if (err.code === 'auth/invalid-email') {
-        setError('Invalid email address.');
+        setError(t('auth.invalidEmail'));
       } else if (err.code === 'auth/too-many-requests') {
-        setError('Too many failed attempts. Try again later.');
+        setError(t('auth.tooManyAttempts'));
       } else {
-        setError(err.message || 'Login failed');
+        setError(err.message || t('auth.backendAuthFailed'));
       }
     } finally {
       setLoading(false);
@@ -259,7 +259,7 @@ export default function LoginPage() {
           <h1 className="text-4xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent mb-2">
             {t('app.title')}
           </h1>
-          <p className="text-gray-600 font-medium">Track, Care & Grow Your Plants</p>
+          <p className="text-gray-600 font-medium">{t('common.tagline')}</p>
         </div>
 
         {/* Main Card */}
@@ -418,7 +418,7 @@ export default function LoginPage() {
 
         {/* Footer */}
         <p className="mt-6 text-center text-sm text-gray-600 animate-slideUp" style={{animationDelay: '0.2s'}}>
-          Made with 🌿 for plant lovers everywhere
+          {t('footer.tagline')}
         </p>
       </div>
     </div>

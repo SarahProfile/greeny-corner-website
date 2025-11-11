@@ -39,7 +39,14 @@ const resources = {
         "enterEmail": "Enter your email address",
         "enterPassword": "Password",
         "confirmPasswordPlaceholder": "Confirm password",
-        "fullNamePlaceholder": "Full name"
+        "fullNamePlaceholder": "Full name",
+        "networkError": "Network error - please check your internet connection and try again",
+        "loginTimeout": "Login timed out - please try again",
+        "googleConnectionFailed": "Failed to connect to Google - please check your internet connection",
+        "noAccountFound": "No account found with this email address.",
+        "incorrectPassword": "Incorrect password.",
+        "invalidEmail": "Invalid email address.",
+        "tooManyAttempts": "Too many failed attempts. Try again later."
       },
       "common": {
         "loading": "Loading...",
@@ -58,7 +65,18 @@ const resources = {
         "sort": "Sort",
         "language": "Language",
         "english": "English",
-        "arabic": "العربية"
+        "arabic": "العربية",
+        "updating": "Updating...",
+        "appLogoAlt": "Greeny Corner Logo",
+        "tagline": "Track, Care & Grow Your Plants",
+        "day": "day",
+        "daysPlural": "days"
+      },
+      "header": {
+        "welcomeUser": "Welcome, {{name}}"
+      },
+      "footer": {
+        "tagline": "Made with 🌿 for plant lovers everywhere"
       },
       "navigation": {
         "home": "Home",
@@ -136,7 +154,11 @@ const resources = {
         "fileTypes": "PNG, JPG up to 2MB",
         "identifyingPlant": "Identifying Plant...",
         "addPlant": "Add Plant",
-        "cameraError": "Unable to access camera. Please check permissions."
+        "cameraError": "Unable to access camera. Please check permissions.",
+        "tipsTitle": "💡 Tips for best results",
+        "tipClearPhoto": "Take a clear photo of the plant's leaves in good lighting",
+        "tipLeafDetails": "Get close enough to see leaf details and patterns",
+        "tipAvoidBlurry": "Avoid blurry or dark images for accurate identification"
       },
       "plantDetail": {
         "backToMyPlants": "← Back to My Plants",
@@ -193,7 +215,9 @@ const resources = {
         "failedToUpdate": "Failed to update watering schedule",
         "failedToDelete": "Failed to delete plant",
         "failedToUpdateImage": "Failed to update image",
-        "preview": "Preview"
+        "preview": "Preview",
+        "waterInDays": "Water in {{days}} {{daysText}}",
+        "everyNDays": "Every {{days}} days"
       }
     }
   },
@@ -233,7 +257,14 @@ const resources = {
         "enterEmail": "أدخل عنوان البريد الإلكتروني",
         "enterPassword": "كلمة المرور",
         "confirmPasswordPlaceholder": "تأكيد كلمة المرور",
-        "fullNamePlaceholder": "الاسم الكامل"
+        "fullNamePlaceholder": "الاسم الكامل",
+        "networkError": "خطأ في الشبكة - يرجى التحقق من اتصال الإنترنت والمحاولة مرة أخرى",
+        "loginTimeout": "انتهت مهلة تسجيل الدخول - يرجى المحاولة مرة أخرى",
+        "googleConnectionFailed": "فشل الاتصال بجوجل - يرجى التحقق من اتصال الإنترنت",
+        "noAccountFound": "لا يوجد حساب مسجل بهذا البريد الإلكتروني.",
+        "incorrectPassword": "كلمة المرور غير صحيحة.",
+        "invalidEmail": "عنوان البريد الإلكتروني غير صحيح.",
+        "tooManyAttempts": "محاولات فاشلة كثيرة جداً. حاول مرة أخرى لاحقاً."
       },
       "common": {
         "loading": "جار التحميل...",
@@ -252,7 +283,18 @@ const resources = {
         "sort": "ترتيب",
         "language": "اللغة",
         "english": "English",
-        "arabic": "العربية"
+        "arabic": "العربية",
+        "updating": "جار التحديث...",
+        "appLogoAlt": "شعار جريني كورنر",
+        "tagline": "تتبع، اعتنِ وأنمِ نباتاتك",
+        "day": "يوم",
+        "daysPlural": "أيام"
+      },
+      "header": {
+        "welcomeUser": "أهلاً، {{name}}"
+      },
+      "footer": {
+        "tagline": "صُنع بـ 🌿 لمحبي النباتات في كل مكان"
       },
       "navigation": {
         "home": "الرئيسية",
@@ -330,7 +372,11 @@ const resources = {
         "fileTypes": "PNG، JPG حتى 2 ميجابايت",
         "identifyingPlant": "جار التعرف على النبتة...",
         "addPlant": "إضافة نبتة",
-        "cameraError": "لا يمكن الوصول للكاميرا. يرجى التحقق من الصلاحيات."
+        "cameraError": "لا يمكن الوصول للكاميرا. يرجى التحقق من الصلاحيات.",
+        "tipsTitle": "💡 نصائح للحصول على أفضل النتائج",
+        "tipClearPhoto": "التقط صورة واضحة لأوراق النبتة في إضاءة جيدة",
+        "tipLeafDetails": "اقترب بما يكفي لرؤية تفاصيل وأنماط الأوراق",
+        "tipAvoidBlurry": "تجنب الصور الضبابية أو المظلمة للحصول على تعريف دقيق"
       },
       "plantDetail": {
         "backToMyPlants": "← العودة لنباتاتي",
@@ -407,7 +453,9 @@ const resources = {
         "sick": "مريضة",
         "needsCare": "تحتاج رعاية",
         "dying": "تذبل",
-        "unknown": "غير معروفة"
+        "unknown": "غير معروفة",
+        "waterInDays": "السقي بعد {{days}} {{daysText}}",
+        "everyNDays": "كل {{days}} أيام"
       }
     }
   }

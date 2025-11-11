@@ -1,0 +1,49 @@
+#!/usr/bin/expect -f
+
+set timeout 60
+log_user 1
+
+spawn ssh -o StrictHostKeyChecking=no u436103792@92.113.19.61
+
+expect {
+    "*password:" {
+        send "Letmelogin123#\r"
+    }
+    timeout {
+        puts "Connection timeout"
+        exit 1
+    }
+}
+
+expect {
+    "*$ " {
+        send "pwd\r"
+    }
+    "*# " {
+        send "pwd\r"
+    }
+    timeout {
+        puts "Prompt timeout"
+        exit 1
+    }
+}
+
+expect {
+    "*$ " {
+        send "ls -la\r"
+    }
+    "*# " {
+        send "ls -la\r"
+    }
+}
+
+expect {
+    "*$ " {
+        send "exit\r"
+    }
+    "*# " {
+        send "exit\r"
+    }
+}
+
+expect eof

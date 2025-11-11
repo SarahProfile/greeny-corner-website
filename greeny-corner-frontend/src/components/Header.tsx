@@ -26,9 +26,9 @@ export default function Header({ showUserInfo = true }: HeaderProps) {
         <div className="flex justify-between h-16">
           <div className="flex items-center">
             <Link href={user ? "/my-plants" : "/"}>
-              <img 
-                src="/greeny-logo.svg" 
-                alt="Greeny Corner Logo" 
+              <img
+                src="/greeny-logo.svg"
+                alt={t('common.appLogoAlt')}
                 className="h-16 cursor-pointer"
                 style={{width: 'auto'}}
               />
@@ -38,7 +38,7 @@ export default function Header({ showUserInfo = true }: HeaderProps) {
             <LanguageSwitcher />
             {showUserInfo && user && (
               <>
-                <span className="text-gray-700">Welcome, {user.name}</span>
+                <span className="text-gray-700">{t('header.welcomeUser', { name: user.name })}</span>
                 <button
                   onClick={handleLogout}
                   className="text-gray-500 hover:text-gray-700 font-medium"
