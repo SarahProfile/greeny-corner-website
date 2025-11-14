@@ -23,7 +23,22 @@ class PlantController extends Controller
     public function index(Request $request)
     {
         $plants = $request->user()->plants()->with('careSchedule')->get();
-        
+
+        // Get language preference from request header or query parameter
+        $language = $request->input('language') ?? $request->header('Accept-Language', 'en');
+        // Extract just the language code (e.g., 'ar' from 'ar-AE' or 'en' from 'en-US')
+        $language = substr($language, 0, 2);
+
+        // Translate plant data if language is not English
+        if ($language !== 'en') {
+            $plants = $plants->map(function ($plant) use ($language) {
+                if ($plant->api_data) {
+                    $plant->api_data = $this->translationService->translatePlantData($plant->api_data, $language);
+                }
+                return $plant;
+            });
+        }
+
         return response()->json($plants);
     }
 
@@ -122,7 +137,17 @@ class PlantController extends Controller
     public function show(Request $request, $id)
     {
         $plant = $request->user()->plants()->with('careSchedule')->findOrFail($id);
-        
+
+        // Get language preference from request header or query parameter
+        $language = $request->input('language') ?? $request->header('Accept-Language', 'en');
+        // Extract just the language code (e.g., 'ar' from 'ar-AE' or 'en' from 'en-US')
+        $language = substr($language, 0, 2);
+
+        // Translate plant data if language is not English
+        if ($language !== 'en' && $plant->api_data) {
+            $plant->api_data = $this->translationService->translatePlantData($plant->api_data, $language);
+        }
+
         return response()->json($plant);
     }
 
