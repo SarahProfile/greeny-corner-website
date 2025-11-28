@@ -131,12 +131,16 @@ export const authAPI = {
 
 export const plantsAPI = {
   getPlants: async () => {
-    const response = await api.get<Plant[]>('/plants');
+    // Get current language from localStorage
+    const language = (typeof window !== 'undefined' ? localStorage.getItem('i18nextLng') : null) || 'en';
+    const response = await api.get<Plant[]>(`/plants?language=${language}`);
     return response.data;
   },
 
   getPlant: async (id: number) => {
-    const response = await api.get<Plant>(`/plants/${id}`);
+    // Get current language from localStorage
+    const language = (typeof window !== 'undefined' ? localStorage.getItem('i18nextLng') : null) || 'en';
+    const response = await api.get<Plant>(`/plants/${id}?language=${language}`);
     return response.data;
   },
 
