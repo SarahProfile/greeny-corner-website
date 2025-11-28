@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Plant;
 use App\Models\CareSchedule;
 use App\Services\TranslationService;
+use App\Services\GeminiService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
@@ -2068,7 +2069,8 @@ class PlantController extends Controller
             'Calathea' => 'Non-toxic to pets and humans. Safe for households with children and pets.',
         ];
         
-        return $toxicityInfo[$plantName] ?? 'Use caution around pets and children. Research specific toxicity information.';
+        // Return null if no specific toxicity info - don't show generic warning
+        return $toxicityInfo[$plantName] ?? null;
     }
 
     private function getGrowthInfo($plantName)
@@ -2126,20 +2128,50 @@ class PlantController extends Controller
     {
         $benefits = [
             'Pothos' => ['Excellent air purifier', 'Removes formaldehyde and xylene', 'Easy propagation', 'Low maintenance'],
+            'Golden Pothos' => ['Excellent air purifier', 'Removes formaldehyde and xylene', 'Easy propagation', 'Low maintenance'],
             'Monstera Deliciosa' => ['Air purifying', 'Humidity booster', 'Instagram-worthy aesthetic', 'Long-lasting foliage'],
+            'Monstera' => ['Air purifying', 'Humidity booster', 'Creates tropical ambiance', 'Long-lasting foliage'],
             'Snake Plant' => ['Superior air purifier', 'Releases oxygen at night', 'Removes benzene and formaldehyde', 'Extremely low maintenance'],
+            'Sansevieria' => ['Superior air purifier', 'Releases oxygen at night', 'Removes benzene and formaldehyde', 'Extremely low maintenance'],
             'Peace Lily' => ['Excellent air purifier', 'Removes ammonia and acetone', 'Beautiful white flowers', 'Indicates watering needs'],
+            'Spathiphyllum' => ['Excellent air purifier', 'Removes ammonia and acetone', 'Beautiful white flowers', 'Low light tolerant'],
             'Spider Plant' => ['Safe for pets', 'Easy to propagate', 'Air purifying qualities', 'Great for beginners'],
+            'Chlorophytum' => ['Safe for pets', 'Easy to propagate', 'Air purifying qualities', 'Great for beginners'],
             'Rubber Plant' => ['Large leaves for air purification', 'Classic aesthetic appeal', 'Long-lived plant', 'Tolerates some neglect'],
+            'Ficus Elastica' => ['Large leaves for air purification', 'Classic aesthetic appeal', 'Long-lived plant', 'Tolerates some neglect'],
             'Fiddle Leaf Fig' => ['Statement plant appeal', 'Large leaves for air cleaning', 'Modern aesthetic', 'Can become a room focal point'],
+            'Ficus Lyrata' => ['Statement plant appeal', 'Large leaves for air cleaning', 'Modern aesthetic', 'Can become a room focal point'],
             'ZZ Plant' => ['Extremely low maintenance', 'Drought tolerant', 'Low light tolerant', 'Air purifying'],
+            'Zamioculcas' => ['Extremely low maintenance', 'Drought tolerant', 'Low light tolerant', 'Air purifying'],
             'Philodendron' => ['Easy care and propagation', 'Fast growing', 'Air purifying', 'Trailing beauty'],
             'Aloe Vera' => ['Natural first aid for burns', 'Medicinal gel in leaves', 'Low water requirements', 'Attractive succulent form'],
+            'Aloe' => ['Natural first aid for burns', 'Medicinal gel in leaves', 'Low water requirements', 'Attractive succulent form'],
             'Jade Plant' => ['Symbol of good luck', 'Long-lived (can live decades)', 'Easy propagation', 'Drought tolerant'],
+            'Crassula' => ['Symbol of good luck', 'Long-lived (can live decades)', 'Easy propagation', 'Drought tolerant'],
             'Calathea' => ['Beautiful patterned foliage', 'Non-toxic to pets', 'Natural humidity indicator', 'Unique prayer movement'],
+            'Orchid' => ['Elegant exotic blooms', 'Long-lasting flowers', 'Purifies indoor air', 'Adds sophistication to any space'],
+            'Phalaenopsis' => ['Long-lasting beautiful blooms', 'Easy to care for orchid', 'Elegant appearance', 'Air purifying'],
+            'Succulent' => ['Minimal water needs', 'Unique sculptural forms', 'Stress relief', 'Perfect for beginners'],
+            'Cactus' => ['Extremely drought tolerant', 'Unique desert beauty', 'Low maintenance', 'Stores water efficiently'],
+            'Dracaena' => ['Excellent air purifier', 'Removes toxins from air', 'Low maintenance', 'Adds vertical interest'],
+            'Fern' => ['Natural air humidifier', 'Lush green foliage', 'Removes air pollutants', 'Brings forest ambiance indoors'],
+            'Boston Fern' => ['Excellent air humidifier', 'Removes formaldehyde', 'Lush cascading foliage', 'Pet-friendly'],
+            'Anthurium' => ['Long-lasting colorful blooms', 'Air purifying', 'Tropical beauty', 'Humidity loving'],
+            'Dieffenbachia' => ['Large decorative leaves', 'Air purifying', 'Fast growing', 'Creates tropical atmosphere'],
+            'Aglaonema' => ['Low light tolerant', 'Air purifying', 'Easy maintenance', 'Colorful foliage varieties'],
+            'Chinese Evergreen' => ['Tolerates low light', 'Air purifying', 'Low maintenance', 'Colorful leaves'],
         ];
-        
-        return $benefits[$plantName] ?? ['Natural air purification', 'Adds beauty to living spaces', 'Connects you with nature', 'Low maintenance houseplant'];
+
+        // Check if plant name exists in benefits (case-insensitive partial match)
+        foreach ($benefits as $key => $value) {
+            if (stripos($plantName, $key) !== false || stripos($key, $plantName) !== false) {
+                return $value;
+            }
+        }
+
+        // Default benefits - no translation needed, return empty to avoid showing generic text
+        // Users will see plant-specific benefits or none at all
+        return [];
     }
 
     private function getInterestingFacts($plantName)
@@ -2151,11 +2183,23 @@ class PlantController extends Controller
                 'Can climb up to 40 feet in nature',
                 'Leaves get larger as the plant climbs higher'
             ],
+            'Golden Pothos' => [
+                'Can grow in water indefinitely without soil',
+                'Nearly impossible to kill - perfect for beginners',
+                'Can climb up to 40 feet in nature',
+                'Native to French Polynesia'
+            ],
             'Monstera Deliciosa' => [
                 'Holes in leaves help resist strong winds in nature',
                 'Can produce edible fruit (but rarely indoors)',
                 'Uses aerial roots to climb trees in the wild',
                 'Young plants don\'t have holes - they develop with age'
+            ],
+            'Monstera' => [
+                'Holes in leaves help resist strong winds',
+                'Can grow up to 60 feet in the wild',
+                'Uses aerial roots to climb trees',
+                'Native to Central American rainforests'
             ],
             'Snake Plant' => [
                 'Can survive months without water',
@@ -2163,11 +2207,23 @@ class PlantController extends Controller
                 'Releases oxygen at night (unlike most plants)',
                 'Can be propagated from a single leaf cutting'
             ],
+            'Sansevieria' => [
+                'Can survive months without water',
+                'NASA rates it as one of the best air purifiers',
+                'Releases oxygen at night',
+                'Native to West Africa'
+            ],
             'Peace Lily' => [
                 'Not actually a true lily',
                 'White "flowers" are actually modified leaves called spathes',
                 'Can live for decades with proper care',
                 'Leaves droop dramatically when thirsty'
+            ],
+            'Spathiphyllum' => [
+                'Not actually a true lily',
+                'White "flowers" are modified leaves',
+                'Can filter toxins from the air',
+                'Native to tropical Americas'
             ],
             'Spider Plant' => [
                 'Baby plants are clones of the parent',
@@ -2175,20 +2231,162 @@ class PlantController extends Controller
                 'Can produce dozens of plantlets per year',
                 'Originally discovered in South Africa in the 1800s'
             ],
+            'Chlorophytum' => [
+                'Baby plants are clones of the parent',
+                'Can produce dozens of plantlets per year',
+                'One of the most popular houseplants worldwide',
+                'Discovered in South Africa'
+            ],
             'Aloe Vera' => [
                 'Gel inside leaves is 96% water',
                 'Has been used medicinally for over 6,000 years',
                 'Can close its pores to prevent water loss',
                 'Ancient Egyptians called it the "plant of immortality"'
             ],
+            'Aloe' => [
+                'Over 500 species exist worldwide',
+                'Used medicinally for thousands of years',
+                'Can survive in extreme drought conditions',
+                'Stores water in its thick leaves'
+            ],
+            'Rubber Plant' => [
+                'Can grow up to 100 feet tall in nature',
+                'Was once used to produce rubber commercially',
+                'New leaves emerge in red protective sheaths',
+                'Can live for over 50 years with proper care'
+            ],
+            'Ficus Elastica' => [
+                'Can grow up to 100 feet in its native habitat',
+                'Historically used for rubber production',
+                'Sacred in Hindu culture',
+                'Can live for decades indoors'
+            ],
+            'Fiddle Leaf Fig' => [
+                'Named for its violin-shaped leaves',
+                'Can grow up to 50 feet in the wild',
+                'Leaves can grow up to 18 inches long',
+                'Native to West African rainforests'
+            ],
+            'Ficus Lyrata' => [
+                'Leaves shaped like a violin or fiddle',
+                'Can reach 50 feet in tropical forests',
+                'Very popular in interior design',
+                'Native to lowland tropical rainforests'
+            ],
+            'ZZ Plant' => [
+                'Discovered in Eastern Africa in 1892',
+                'Can tolerate extremely low light',
+                'Stores water in thick underground rhizomes',
+                'Became popular worldwide in the 1990s'
+            ],
+            'Zamioculcas' => [
+                'Discovered in Africa in the late 1800s',
+                'Stores water in underground rhizomes',
+                'Can survive months without water',
+                'Became a houseplant sensation in the 1990s'
+            ],
+            'Philodendron' => [
+                'Name means "love tree" in Greek',
+                'Over 450 species exist',
+                'Can climb using aerial roots',
+                'Native to tropical Americas'
+            ],
+            'Jade Plant' => [
+                'Can live for 100+ years',
+                'Symbol of good luck in Asian cultures',
+                'Trunk becomes thick and woody with age',
+                'Native to South Africa'
+            ],
+            'Crassula' => [
+                'Can live for over 100 years',
+                'Known as the "money tree" for good luck',
+                'Over 200 species in the genus',
+                'Native to South Africa'
+            ],
+            'Calathea' => [
+                'Leaves fold up at night like hands in prayer',
+                'Uses leaf movement to maximize light exposure',
+                'Has rattlesnake-like patterns on some varieties',
+                'Native to tropical Americas'
+            ],
+            'Orchid' => [
+                'Over 25,000 species exist naturally',
+                'Flowers can last for months',
+                'Some species can live for 100 years',
+                'Found on every continent except Antarctica'
+            ],
+            'Phalaenopsis' => [
+                'Known as the "moth orchid" for flower shape',
+                'Can bloom for 3-4 months continuously',
+                'Native to Southeast Asia and Australia',
+                'One of the easiest orchids to grow indoors'
+            ],
+            'Succulent' => [
+                'Stores water in leaves, stems, or roots',
+                'Can survive in extremely arid climates',
+                'Over 60 plant families include succulents',
+                'Some can live for over 200 years'
+            ],
+            'Cactus' => [
+                'Can survive years without water',
+                'Spines are modified leaves',
+                'Some species can live for 200+ years',
+                'Stores water in thick stems'
+            ],
+            'Dracaena' => [
+                'Some species can live for centuries',
+                'Name comes from Greek word for "female dragon"',
+                'Can grow up to 20 feet indoors',
+                'NASA study confirmed air-purifying abilities'
+            ],
+            'Fern' => [
+                'Among the oldest plants on Earth',
+                'Existed before flowering plants',
+                'Reproduce using spores, not seeds',
+                'Over 10,000 species worldwide'
+            ],
+            'Boston Fern' => [
+                'Can remove more formaldehyde than any other plant',
+                'Fronds can grow up to 3 feet long',
+                'Native to tropical forests worldwide',
+                'Victorian-era favorite houseplant'
+            ],
+            'Anthurium' => [
+                'Heart-shaped "flowers" are actually leaves',
+                'Can bloom year-round in ideal conditions',
+                'Over 1,000 species exist',
+                'Native to Central and South America'
+            ],
+            'Dieffenbachia' => [
+                'Named after German botanist J.F. Dieffenbach',
+                'Can grow 6 feet tall indoors',
+                'Called "dumb cane" for its toxic sap',
+                'Native to tropical Americas'
+            ],
+            'Aglaonema' => [
+                'Known as Chinese Evergreen',
+                'Can tolerate very low light conditions',
+                'Over 20 recognized species',
+                'Has been grown as a houseplant for centuries'
+            ],
+            'Chinese Evergreen' => [
+                'First brought to the West in 1885',
+                'Can thrive in almost no natural light',
+                'Considered a symbol of luck in Chinese culture',
+                'One of the most durable houseplants'
+            ],
         ];
-        
-        return $facts[$plantName] ?? [
-            'A fascinating member of the plant kingdom',
-            'Adapted to thrive in indoor environments',
-            'Part of millions of years of plant evolution',
-            'Connects your home to the natural world'
-        ];
+
+        // Check if plant name exists in facts (case-insensitive partial match)
+        foreach ($facts as $key => $value) {
+            if (stripos($plantName, $key) !== false || stripos($key, $plantName) !== false) {
+                return $value;
+            }
+        }
+
+        // Default facts - return empty to avoid showing generic text
+        // Users will see plant-specific facts or none at all
+        return [];
     }
     
     private function identifyWithClaude($imagePath, $language)
@@ -3870,5 +4068,253 @@ class PlantController extends Controller
         }
         
         return $plantData;
+    }
+
+    /**
+     * Get plant data by name with language support
+     * GET /api/plants/by-name?name=Ficus-lyrata&lang=ar
+     */
+    public function getPlantByName(Request $request)
+    {
+        $plantName = $request->query('name');
+        $language = $request->query('lang', 'en');
+
+        if (!$plantName) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Plant name is required'
+            ], 400);
+        }
+
+        $normalizedName = str_replace('-', ' ', $plantName);
+
+        $plant = Plant::where('name', 'LIKE', "%{$normalizedName}%")
+            ->orWhere('scientific_name', 'LIKE', "%{$normalizedName}%")
+            ->where('gemini_data_fetched', true)
+            ->first();
+
+        if ($plant) {
+            \Log::info("Found existing plant in database: {$plant->name}");
+
+            $plantData = $language === 'ar' ? $plant->plant_data_ar : $plant->plant_data_en;
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'id' => $plant->id,
+                    'name' => $plant->name,
+                    'scientific_name' => $plant->scientific_name,
+                    'image_url' => $plant->image_url,
+                    'plant_data' => $plantData,
+                    'language' => $language
+                ]
+            ]);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Plant data not found. Please identify the plant first using the identify endpoint.'
+        ], 404);
+    }
+
+    /**
+     * Enhanced identify method that uses PlantNet + Gemini
+     */
+    public function identifyWithGemini(Request $request)
+    {
+        if (!$request->hasFile('image')) {
+            return response()->json([
+                'message' => 'No image file received',
+                'error' => 'Please ensure the image is properly selected and uploaded'
+            ], 400);
+        }
+
+        $language = $request->input('language', 'en');
+
+        try {
+            $image = $request->file('image');
+            $imagePath = $image->store('plant_images', 'public');
+            $fullPath = storage_path('app/public/' . $imagePath);
+
+            \Log::info('Image uploaded to: ' . $fullPath);
+
+            $plantNetResult = $this->identifyWithPlantNetOnly($fullPath);
+
+            if (!$plantNetResult || !isset($plantNetResult['name'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Could not identify plant from image'
+                ], 400);
+            }
+
+            $plantName = $plantNetResult['name'];
+            $scientificName = $plantNetResult['scientific_name'] ?? $plantName;
+
+            \Log::info("PlantNet identified plant: {$plantName}");
+
+            $existingPlant = Plant::where('scientific_name', $scientificName)
+                ->where('gemini_data_fetched', true)
+                ->first();
+
+            if ($existingPlant) {
+                \Log::info("Using existing Gemini data for: {$plantName}");
+
+                return response()->json([
+                    'success' => true,
+                    'identification' => [
+                        'name' => $existingPlant->name,
+                        'scientific_name' => $existingPlant->scientific_name,
+                        'confidence' => $plantNetResult['confidence'] ?? 0.8
+                    ],
+                    'plant_data' => $language === 'ar' ? $existingPlant->plant_data_ar : $existingPlant->plant_data_en,
+                    'source' => 'cached'
+                ]);
+            }
+
+            $geminiService = app(GeminiService::class);
+            $bilingualData = $geminiService->getBilingualPlantDetails($plantName);
+
+            if (!$bilingualData['en'] || !$bilingualData['ar']) {
+                \Log::warning("Gemini failed to generate data for: {$plantName}");
+
+                return response()->json([
+                    'success' => true,
+                    'identification' => [
+                        'name' => $plantName,
+                        'scientific_name' => $scientificName,
+                        'confidence' => $plantNetResult['confidence'] ?? 0.8
+                    ],
+                    'message' => 'Plant identified but detailed data could not be generated',
+                    'source' => 'plantnet_only'
+                ]);
+            }
+
+            $newPlant = Plant::create([
+                'user_id' => auth()->id(),
+                'name' => $plantName,
+                'scientific_name' => $scientificName,
+                'image_url' => '/storage/' . $imagePath,
+                'plant_data_en' => $bilingualData['en'],
+                'plant_data_ar' => $bilingualData['ar'],
+                'gemini_data_fetched' => true,
+                'gemini_fetched_at' => now(),
+                'added_at' => now()
+            ]);
+
+            \Log::info("Successfully created plant with Gemini data: {$plantName}");
+
+            return response()->json([
+                'success' => true,
+                'plant' => $newPlant,
+                'plant_data' => $language === 'ar' ? $bilingualData['ar'] : $bilingualData['en'],
+                'source' => 'gemini'
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Plant identification failed: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to identify plant',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Helper method: Use PlantNet API ONLY for plant name extraction
+     */
+    private function identifyWithPlantNetOnly($imagePath): ?array
+    {
+        $apiKey = env('PLANTNET_API_KEY');
+
+        if (!$apiKey) {
+            \Log::warning('PlantNet API key not configured');
+            return null;
+        }
+
+        if (!file_exists($imagePath)) {
+            \Log::error('Image file not found: ' . $imagePath);
+            return null;
+        }
+
+        try {
+            $apiUrl = 'https://my-api.plantnet.org/v2/identify/all';
+
+            $curl = curl_init();
+            curl_setopt_array($curl, [
+                CURLOPT_URL => $apiUrl . '?api-key=' . $apiKey,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_POST => true,
+                CURLOPT_POSTFIELDS => [
+                    'images' => new \CURLFile($imagePath, mime_content_type($imagePath)),
+                    'organs' => 'auto'
+                ],
+                CURLOPT_TIMEOUT => 15,
+            ]);
+
+            $response = curl_exec($curl);
+            $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+            curl_close($curl);
+
+            if ($httpCode === 200 && $response) {
+                $data = json_decode($response, true);
+
+                if (isset($data['results']) && count($data['results']) > 0) {
+                    $topResult = $data['results'][0];
+
+                    return [
+                        'name' => $topResult['species']['commonNames'][0] ?? $topResult['species']['scientificNameWithoutAuthor'],
+                        'scientific_name' => $topResult['species']['scientificNameWithoutAuthor'],
+                        'confidence' => $topResult['score'] ?? 0,
+                    ];
+                }
+            }
+
+            return null;
+        } catch (\Exception $e) {
+            \Log::error('PlantNet API error: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Refresh/regenerate Gemini data for an existing plant
+     * PUT /api/plants/{id}/refresh-gemini
+     */
+    public function refreshGeminiData($id)
+    {
+        $plant = Plant::findOrFail($id);
+
+        if ($plant->user_id !== auth()->id()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized'
+            ], 403);
+        }
+
+        $plantName = $plant->scientific_name ?? $plant->name;
+
+        $geminiService = app(GeminiService::class);
+        $bilingualData = $geminiService->getBilingualPlantDetails($plantName);
+
+        if ($bilingualData['en'] && $bilingualData['ar']) {
+            $plant->update([
+                'plant_data_en' => $bilingualData['en'],
+                'plant_data_ar' => $bilingualData['ar'],
+                'gemini_data_fetched' => true,
+                'gemini_fetched_at' => now(),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Plant data refreshed successfully',
+                'plant' => $plant
+            ]);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to refresh plant data'
+        ], 500);
     }
 }

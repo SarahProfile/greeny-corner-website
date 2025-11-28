@@ -19,11 +19,19 @@ class Plant extends Model
         'added_at',
         'scientific_name',
         'perenual_id',
+        'plant_data_en',
+        'plant_data_ar',
+        'gemini_data_fetched',
+        'gemini_fetched_at',
     ];
 
     protected $casts = [
         'api_data' => 'array',
+        'plant_data_en' => 'array',
+        'plant_data_ar' => 'array',
         'added_at' => 'datetime',
+        'gemini_fetched_at' => 'datetime',
+        'gemini_data_fetched' => 'boolean',
     ];
 
     public function user(): BelongsTo

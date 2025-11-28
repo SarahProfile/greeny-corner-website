@@ -26,6 +26,9 @@ Route::post('/auth/firebase/verify', [FirebaseAuthController::class, 'verifyToke
 Route::get('/plants/api-capabilities', [PlantController::class, 'getPlantRecogCapabilities']);
 Route::post('/plants/identify', [PlantController::class, 'identify']);
 
+// New Gemini-based plant data retrieval (public - no auth required)
+Route::get('/plants/by-name', [PlantController::class, 'getPlantByName']);
+
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user', function (Request $request) {
@@ -42,4 +45,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('plants/{id}/schedule', [PlantController::class, 'updateSchedule']);
     Route::post('plants/{id}/update-image', [PlantController::class, 'updatePlantImage']);
     Route::post('plants/refresh-language', [PlantController::class, 'refreshPlantsLanguage']);
+
+    // Gemini-based identification and data refresh
+    Route::post('plants/identify-gemini', [PlantController::class, 'identifyWithGemini']);
+    Route::put('plants/{id}/refresh-gemini', [PlantController::class, 'refreshGeminiData']);
 });
