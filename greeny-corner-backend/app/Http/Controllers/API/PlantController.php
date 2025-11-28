@@ -655,7 +655,12 @@ class PlantController extends Controller
                 curl_close($curl);
                 
                 if ($curlError) {
-                    \Log::warning("PlantNet project {$project} cURL error: " . $curlError);
+                    \Log::error("PlantNet project {$project} cURL error: " . $curlError);
+                    continue;
+                }
+
+                if ($httpCode !== 200) {
+                    \Log::error("PlantNet project {$project} HTTP error code: {$httpCode}, Response: " . substr($response, 0, 500));
                     continue;
                 }
                 
@@ -685,8 +690,8 @@ class PlantController extends Controller
             }
             
             // Process the best result if we found one with acceptable confidence
-            $minConfidence = 0.05; // 5% minimum confidence threshold
-            
+            $minConfidence = 0.01; // 1% minimum confidence threshold (very lenient)
+
             if ($bestResult && $bestConfidence >= $minConfidence) {
                 \Log::info('Using best PlantNet result with confidence: ' . $bestConfidence);
                 
