@@ -25,6 +25,17 @@ Route::post('/auth/firebase/verify', [FirebaseAuthController::class, 'verifyToke
 // Public routes (no authentication required)
 Route::get('/plants/api-capabilities', [PlantController::class, 'getPlantRecogCapabilities']);
 Route::post('/plants/identify', [PlantController::class, 'identify']);
+Route::get('/debug/config', function() {
+    return response()->json([
+        'plantnet_configured' => env('PLANTNET_API_KEY') ? 'Yes (key exists)' : 'No',
+        'gemini_configured' => env('GEMINI_API_KEY') ? 'Yes (key exists)' : 'No',
+        'storage_path' => storage_path('app/public/plants'),
+        'storage_exists' => file_exists(storage_path('app/public/plants')),
+        'storage_writable' => is_writable(storage_path('app/public')),
+        'php_upload_max' => ini_get('upload_max_filesize'),
+        'php_post_max' => ini_get('post_max_size'),
+    ]);
+});
 
 // New Gemini-based plant data retrieval (public - no auth required)
 Route::get('/plants/by-name', [PlantController::class, 'getPlantByName']);
