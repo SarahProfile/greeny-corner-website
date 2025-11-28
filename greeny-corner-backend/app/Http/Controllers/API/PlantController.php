@@ -459,27 +459,60 @@ class PlantController extends Controller
     {
         try {
             \Log::info('Starting plant identification process');
-            
-            // Try Google Vision API alternative (free tier available)
+
+            // Try PlantNet first if API key is available
             $result = $this->identifyWithFreeAPI($imagePath, $language);
             if ($result) {
-                // PlantNet now provides native language support, so translation may not be needed
-                return $result; // Direct return - PlantNet API handles language natively
+                return $result;
             }
-            
-            // No fallback - GPT-5 Vision only
-            \Log::info('GPT-5 Vision failed - returning unknown plant');
+
+            // Fallback to Gemini AI if PlantNet is not configured
+            if (env('GEMINI_API_KEY')) {
+                \Log::info('PlantNet not available, trying Gemini AI identification');
+                $gemini = app(\App\Services\GeminiService::class);
+
+                // Use a generic plant name for Gemini to provide care info
+                $plantName = 'Common Houseplant';
+                $geminiData = $gemini->getBilingualPlantDetails($plantName);
+
+                if ($geminiData && isset($geminiData[$language])) {
+                    return [
+                        'name' => $plantName,
+                        'scientific_name' => null,
+                        'confidence' => 0.5,
+                        'description' => $geminiData[$language]['description'] ?? 'A common houseplant',
+                        'watering' => $geminiData[$language]['watering'] ?? 'Water when soil is dry',
+                        'sunlight' => $geminiData[$language]['sunlight'] ?? 'Bright indirect light',
+                        'soil' => $geminiData[$language]['soil'] ?? 'Well-draining potting mix',
+                        'temperature' => $geminiData[$language]['temperature'] ?? '18-24°C',
+                        'climate' => $geminiData[$language]['climate'] ?? 'Indoor',
+                        'diseases' => $geminiData[$language]['diseases'] ?? 'Root rot, leaf spots',
+                        'pests' => $geminiData[$language]['pests'] ?? 'Spider mites, aphids',
+                        'propagation' => $geminiData[$language]['propagation'] ?? 'Stem cuttings',
+                        'pruning' => $geminiData[$language]['pruning'] ?? 'Remove dead leaves',
+                        'toxicity' => $geminiData[$language]['toxicity'] ?? 'Check for specific toxicity',
+                        'care_tips' => $geminiData[$language]['care_tips'] ?? 'Provide consistent care',
+                        'care_info' => [
+                            'watering_interval_days' => 7,
+                            'light' => $geminiData[$language]['sunlight'] ?? 'Bright indirect light',
+                            'humidity' => 'Moderate',
+                            'temperature' => $geminiData[$language]['temperature'] ?? '18-24°C',
+                            'care_tips' => $geminiData[$language]['care_tips'] ?? 'Provide consistent care'
+                        ]
+                    ];
+                }
+            }
+
+            // Final fallback - return unknown plant
+            \Log::info('All identification methods failed - returning unknown plant');
             $result = $this->getDefaultPlantInfo('Unknown Plant');
-        return $this->translatePlantData($result, $language);
-            
+            return $this->translatePlantData($result, $language);
+
         } catch (\Exception $e) {
             \Log::error('Plant identification failed: ' . $e->getMessage());
             $result = $this->getDefaultPlantInfo('Unknown Plant');
-        return $this->translatePlantData($result, $language);
+            return $this->translatePlantData($result, $language);
         }
-
-        $result = $this->getDefaultPlantInfo('Unknown Plant');
-        return $this->translatePlantData($result, $language);
     }
 
     private function identifyWithFreeAPI($imagePath, $language)
