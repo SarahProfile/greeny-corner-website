@@ -30,14 +30,23 @@ export default function MyPlantsPage() {
   }, []);
 
   useEffect(() => {
-    if (authLoading) return;
+    console.log('🔍 MyPlants: Auth check - authLoading:', authLoading, 'user:', user ? 'exists' : 'null');
+
+    if (authLoading) {
+      console.log('⏳ MyPlants: Still loading auth, waiting...');
+      return;
+    }
+
     if (!user) {
+      console.log('❌ MyPlants: No user found, redirecting to login');
       router.push('/login');
       return;
     }
+
+    console.log('✅ MyPlants: User authenticated, fetching plants');
     fetchPlants();
     checkNotificationPermission();
-  }, [user, authLoading, router]);
+  }, [user, authLoading]);
 
   useEffect(() => {
     if (plants.length > 0 && notificationsEnabled) {

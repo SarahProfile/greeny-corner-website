@@ -30,7 +30,7 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
   const [nutritionData, setNutritionData] = useState<any>(null);
   const [loadingDiseases, setLoadingDiseases] = useState(false);
 
-  const { user, logout } = useAuth();
+  const { user, logout, loading: authLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -42,15 +42,25 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
   }, [params]);
 
   useEffect(() => {
+    console.log('🔍 PlantDetail: Auth check - authLoading:', authLoading, 'user:', user ? 'exists' : 'null');
+
+    // Wait for auth to finish loading
+    if (authLoading) {
+      console.log('⏳ PlantDetail: Still loading auth, waiting...');
+      return;
+    }
+
     if (!user) {
+      console.log('❌ PlantDetail: No user found, redirecting to login');
       router.push('/login');
       return;
     }
 
+    console.log('✅ PlantDetail: User authenticated, fetching plant data');
     if (plantId) {
       fetchPlant();
     }
-  }, [user, router, plantId]);
+  }, [user, authLoading, plantId]);
 
   useEffect(() => {
     if (plant?.care_schedule?.watering_interval_days) {
