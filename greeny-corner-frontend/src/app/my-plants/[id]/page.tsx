@@ -459,14 +459,14 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
               {plant.api_data?.origin && (
                 <div className="bg-gradient-to-br from-blue-50 to-cyan-50 p-4 rounded-2xl border border-blue-200">
                   <dt className="text-sm font-semibold text-blue-900 mb-2">{t('plantDetail.origin')}</dt>
-                  <dd className="text-sm text-blue-700 font-medium">{plant.api_data.origin}</dd>
+                  <dd className="text-sm text-blue-700 font-medium">{translatePlantValue(plant.api_data.origin, i18n.language)}</dd>
                 </div>
               )}
 
               {plant.api_data?.growth_info && (
                 <div className="bg-gradient-to-br from-orange-50 to-amber-50 p-4 rounded-2xl border border-orange-200">
                   <dt className="text-sm font-semibold text-orange-900 mb-2">{t('plantDetail.matureSize')}</dt>
-                  <dd className="text-sm text-orange-700 font-medium">{plant.api_data.growth_info.size}</dd>
+                  <dd className="text-sm text-orange-700 font-medium">{translatePlantValue(plant.api_data.growth_info.size, i18n.language)}</dd>
                 </div>
               )}
             </div>
@@ -531,7 +531,7 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
                     <span className="text-xl mr-2">💡</span>
                     {t('plantDetail.careTips')}
                   </h4>
-                  <p className="text-sm text-indigo-700 leading-relaxed">{plant.api_data.care_info.care_tips}</p>
+                  <p className="text-sm text-indigo-700 leading-relaxed">{translatePlantValue(plant.api_data.care_info.care_tips, i18n.language)}</p>
                 </div>
               )}
             </div>
@@ -551,19 +551,19 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-5 rounded-2xl text-center border border-green-200">
                   <div className="text-sm font-semibold text-green-900 mb-2">{t('plantDetail.growthRate')}</div>
-                  <div className="text-lg text-green-700 font-bold">{plant.api_data.growth_info.growth_rate}</div>
+                  <div className="text-lg text-green-700 font-bold">{translatePlantValue(plant.api_data.growth_info.growth_rate, i18n.language)}</div>
                 </div>
                 <div className="bg-gradient-to-br from-purple-50 to-pink-50 p-5 rounded-2xl text-center border border-purple-200">
                   <div className="text-sm font-semibold text-purple-900 mb-2">{t('plantDetail.height')}</div>
-                  <div className="text-lg text-purple-700 font-bold">{plant.api_data.growth_info.mature_height}</div>
+                  <div className="text-lg text-purple-700 font-bold">{translatePlantValue(plant.api_data.growth_info.mature_height, i18n.language)}</div>
                 </div>
                 <div className="bg-gradient-to-br from-orange-50 to-amber-50 p-5 rounded-2xl text-center border border-orange-200">
                   <div className="text-sm font-semibold text-orange-900 mb-2">{t('plantDetail.spread')}</div>
-                  <div className="text-lg text-orange-700 font-bold">{plant.api_data.growth_info.spread}</div>
+                  <div className="text-lg text-orange-700 font-bold">{translatePlantValue(plant.api_data.growth_info.spread, i18n.language)}</div>
                 </div>
                 <div className="bg-gradient-to-br from-blue-50 to-cyan-50 p-5 rounded-2xl text-center border border-blue-200">
                   <div className="text-sm font-semibold text-blue-900 mb-2">{t('plantDetail.growthHabit')}</div>
-                  <div className="text-sm text-blue-700 font-bold leading-tight">{plant.api_data.growth_info.growth_habit}</div>
+                  <div className="text-sm text-blue-700 font-bold leading-tight">{translatePlantValue(plant.api_data.growth_info.growth_habit, i18n.language)}</div>
                 </div>
               </div>
             </div>
