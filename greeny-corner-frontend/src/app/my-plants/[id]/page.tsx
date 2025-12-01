@@ -26,6 +26,9 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
   const [showEditSchedule, setShowEditSchedule] = useState(false);
   const [newWateringInterval, setNewWateringInterval] = useState(7);
   const [updatingSchedule, setUpdatingSchedule] = useState(false);
+  const [diseasesData, setDiseasesData] = useState<any>(null);
+  const [nutritionData, setNutritionData] = useState<any>(null);
+  const [loadingDiseases, setLoadingDiseases] = useState(false);
 
   const { user, logout } = useAuth();
   const router = useRouter();
@@ -76,10 +79,25 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
     try {
       const data = await plantsAPI.getPlant(parseInt(plantId));
       setPlant(data);
+      // Also fetch diseases and nutrition data
+      fetchDiseasesAndNutrition();
     } catch (err: any) {
       setError(t('plantDetail.failedToFetch'));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchDiseasesAndNutrition = async () => {
+    setLoadingDiseases(true);
+    try {
+      const data = await plantsAPI.getDiseasesAndNutrition(parseInt(plantId));
+      setDiseasesData(data.diseases);
+      setNutritionData(data.nutrition);
+    } catch (err: any) {
+      console.error('Failed to fetch diseases and nutrition:', err);
+    } finally {
+      setLoadingDiseases(false);
     }
   };
 
@@ -631,6 +649,144 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
                     <span className="text-sm text-indigo-800 leading-relaxed">{fact}</span>
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* Diseases and Protection */}
+          {diseasesData && diseasesData.length > 0 && (
+            <div className="bg-white rounded-3xl shadow-xl p-8 border border-red-100">
+              <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
+                <span className="text-3xl mr-3">🦠</span>
+                {t('plantDetail.commonDiseases')}
+              </h3>
+              <div className="space-y-6">
+                {diseasesData.map((disease: any, index: number) => (
+                  <div key={index} className="border border-red-200 rounded-2xl p-6 bg-gradient-to-br from-red-50 to-pink-50 hover:shadow-md transition-shadow">
+                    <h4 className="text-lg font-bold text-red-900 mb-3 flex items-center">
+                      <span className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center mr-3 text-white text-sm">{index + 1}</span>
+                      {disease.name}
+                    </h4>
+
+                    {disease.description && (
+                      <p className="text-sm text-gray-700 mb-3 leading-relaxed">
+                        {disease.description}
+                      </p>
+                    )}
+
+                    {disease.symptoms && (
+                      <div className="mb-3">
+                        <span className="text-xs font-semibold text-orange-900 uppercase tracking-wide">{t('plantDetail.symptoms')}:</span>
+                        <p className="text-sm text-orange-800 mt-1">{disease.symptoms}</p>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                      {disease.prevention && (
+                        <div className="bg-white rounded-xl p-4 border border-green-200">
+                          <div className="flex items-center mb-2">
+                            <span className="text-lg mr-2">🛡️</span>
+                            <span className="text-xs font-semibold text-green-900 uppercase tracking-wide">{t('plantDetail.prevention')}</span>
+                          </div>
+                          <p className="text-sm text-green-800">{disease.prevention}</p>
+                        </div>
+                      )}
+
+                      {disease.treatment && (
+                        <div className="bg-white rounded-xl p-4 border border-blue-200">
+                          <div className="flex items-center mb-2">
+                            <span className="text-lg mr-2">💊</span>
+                            <span className="text-xs font-semibold text-blue-900 uppercase tracking-wide">{t('plantDetail.treatment')}</span>
+                          </div>
+                          <p className="text-sm text-blue-800">{disease.treatment}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Nutrition Requirements */}
+          {nutritionData && (
+            <div className="bg-white rounded-3xl shadow-xl p-8 border border-green-100">
+              <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
+                <span className="text-3xl mr-3">🌱</span>
+                {t('plantDetail.nutritionRequirements')}
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {nutritionData.primary_nutrients && (
+                  <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-5 border border-green-200">
+                    <div className="flex items-center mb-3">
+                      <span className="text-2xl mr-3">⚗️</span>
+                      <span className="text-sm font-bold text-green-900">{t('plantDetail.primaryNutrients')}</span>
+                    </div>
+                    <p className="text-sm text-green-800 leading-relaxed">{nutritionData.primary_nutrients}</p>
+                  </div>
+                )}
+
+                {nutritionData.secondary_nutrients && (
+                  <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-2xl p-5 border border-blue-200">
+                    <div className="flex items-center mb-3">
+                      <span className="text-2xl mr-3">🧪</span>
+                      <span className="text-sm font-bold text-blue-900">{t('plantDetail.secondaryNutrients')}</span>
+                    </div>
+                    <p className="text-sm text-blue-800 leading-relaxed">{nutritionData.secondary_nutrients}</p>
+                  </div>
+                )}
+
+                {nutritionData.fertilizer_type && (
+                  <div className="bg-gradient-to-br from-amber-50 to-yellow-50 rounded-2xl p-5 border border-amber-200">
+                    <div className="flex items-center mb-3">
+                      <span className="text-2xl mr-3">🧺</span>
+                      <span className="text-sm font-bold text-amber-900">{t('plantDetail.fertilizerType')}</span>
+                    </div>
+                    <p className="text-sm text-amber-800 leading-relaxed">{nutritionData.fertilizer_type}</p>
+                  </div>
+                )}
+
+                {nutritionData.feeding_frequency && (
+                  <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl p-5 border border-purple-200">
+                    <div className="flex items-center mb-3">
+                      <span className="text-2xl mr-3">📅</span>
+                      <span className="text-sm font-bold text-purple-900">{t('plantDetail.feedingFrequency')}</span>
+                    </div>
+                    <p className="text-sm text-purple-800 leading-relaxed">{nutritionData.feeding_frequency}</p>
+                  </div>
+                )}
+
+                {nutritionData.feeding_season && (
+                  <div className="bg-gradient-to-br from-orange-50 to-red-50 rounded-2xl p-5 border border-orange-200">
+                    <div className="flex items-center mb-3">
+                      <span className="text-2xl mr-3">🌞</span>
+                      <span className="text-sm font-bold text-orange-900">{t('plantDetail.feedingSeason')}</span>
+                    </div>
+                    <p className="text-sm text-orange-800 leading-relaxed">{nutritionData.feeding_season}</p>
+                  </div>
+                )}
+
+                {nutritionData.special_notes && (
+                  <div className="col-span-full bg-gradient-to-br from-indigo-50 to-blue-50 rounded-2xl p-5 border border-indigo-200">
+                    <div className="flex items-center mb-3">
+                      <span className="text-2xl mr-3">📝</span>
+                      <span className="text-sm font-bold text-indigo-900">{t('plantDetail.specialNotes')}</span>
+                    </div>
+                    <p className="text-sm text-indigo-800 leading-relaxed">{nutritionData.special_notes}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {loadingDiseases && (
+            <div className="bg-white rounded-3xl shadow-xl p-8 border border-gray-200 text-center">
+              <div className="flex items-center justify-center">
+                <svg className="animate-spin h-8 w-8 text-green-500 mr-3" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span className="text-gray-600">{t('plantDetail.loadingDiseasesNutrition')}</span>
               </div>
             </div>
           )}

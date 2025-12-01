@@ -213,6 +213,12 @@ export const plantsAPI = {
     const response = await api.post('/plants/refresh-language', { language });
     return response.data;
   },
+
+  getDiseasesAndNutrition: async (id: number) => {
+    const language = (typeof window !== 'undefined' ? localStorage.getItem('i18nextLng') : null) || 'en';
+    const response = await api.get(`/plants/${id}/diseases-nutrition?language=${language}`);
+    return response.data;
+  },
 };
 
 export default api;

@@ -248,7 +248,19 @@ const resources = {
         "failedToUpdateImage": "Failed to update image",
         "preview": "Preview",
         "waterInDays": "Water in {{days}} {{daysText}}",
-        "everyNDays": "Every {{days}} days"
+        "everyNDays": "Every {{days}} days",
+        "commonDiseases": "Common Diseases & Protection",
+        "symptoms": "Symptoms",
+        "prevention": "Prevention",
+        "treatment": "Treatment",
+        "nutritionRequirements": "Nutrition Requirements",
+        "primaryNutrients": "Primary Nutrients (NPK)",
+        "secondaryNutrients": "Secondary Nutrients",
+        "fertilizerType": "Fertilizer Type",
+        "feedingFrequency": "Feeding Frequency",
+        "feedingSeason": "Best Feeding Season",
+        "specialNotes": "Special Notes",
+        "loadingDiseasesNutrition": "Loading diseases and nutrition information..."
       }
     }
   },
@@ -517,7 +529,19 @@ const resources = {
         "dying": "تذبل",
         "unknown": "غير معروفة",
         "waterInDays": "السقي بعد {{days}} {{daysText}}",
-        "everyNDays": "كل {{days}} أيام"
+        "everyNDays": "كل {{days}} أيام",
+        "commonDiseases": "الأمراض الشائعة والوقاية",
+        "symptoms": "الأعراض",
+        "prevention": "الوقاية",
+        "treatment": "العلاج",
+        "nutritionRequirements": "متطلبات التغذية",
+        "primaryNutrients": "العناصر الغذائية الأساسية (NPK)",
+        "secondaryNutrients": "العناصر الغذائية الثانوية",
+        "fertilizerType": "نوع السماد",
+        "feedingFrequency": "تكرار التسميد",
+        "feedingSeason": "أفضل موسم للتسميد",
+        "specialNotes": "ملاحظات خاصة",
+        "loadingDiseasesNutrition": "جار تحميل معلومات الأمراض والتغذية..."
       }
     }
   }
