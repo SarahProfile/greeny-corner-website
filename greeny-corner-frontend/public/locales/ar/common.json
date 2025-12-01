@@ -115,7 +115,8 @@
     "days": "أيام",
     "notSet": "غير محدد",
     "added": "تمت الإضافة",
-    "viewDetails": "عرض التفاصيل"
+    "viewDetails": "عرض التفاصيل",
+    "overdueWatering": "سقي متأخر"
   },
   "app": {
     "title": "جريني كورنر",

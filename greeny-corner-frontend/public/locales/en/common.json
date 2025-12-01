@@ -115,7 +115,8 @@
     "days": "days",
     "notSet": "Not set",
     "added": "Added",
-    "viewDetails": "View Details"
+    "viewDetails": "View Details",
+    "overdueWatering": "Overdue watering"
   },
   "app": {
     "title": "Greeny Corner",
