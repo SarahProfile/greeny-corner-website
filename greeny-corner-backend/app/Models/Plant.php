@@ -23,12 +23,16 @@ class Plant extends Model
         'plant_data_ar',
         'gemini_data_fetched',
         'gemini_fetched_at',
+        'diseases_info',
+        'nutrition_info',
     ];
 
     protected $casts = [
         'api_data' => 'array',
         'plant_data_en' => 'array',
         'plant_data_ar' => 'array',
+        'diseases_info' => 'array',
+        'nutrition_info' => 'array',
         'added_at' => 'datetime',
         'gemini_fetched_at' => 'datetime',
         'gemini_data_fetched' => 'boolean',

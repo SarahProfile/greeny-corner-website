@@ -4355,4 +4355,59 @@ class PlantController extends Controller
             'message' => 'Failed to refresh plant data'
         ], 500);
     }
+
+    public function getDiseasesAndNutrition(Request $request, $id)
+    {
+        $plant = Plant::where('id', $id)
+            ->where('user_id', $request->user()->id)
+            ->first();
+
+        if (!$plant) {
+            return response()->json(['message' => 'Plant not found'], 404);
+        }
+
+        // Get language preference
+        $language = $request->input('language', 'en');
+        $language = substr($language, 0, 2);
+
+        // If we already have the data, return it
+        if ($plant->diseases_info && $plant->nutrition_info) {
+            $key = $language === 'ar' ? 'ar' : 'en';
+
+            return response()->json([
+                'diseases': $plant->diseases_info[$key]['diseases'] ?? [],
+                'nutrition': $plant->nutrition_info[$key] ?? null,
+            ]);
+        }
+
+        // Fetch from Gemini AI
+        $gemini = app(GeminiService::class);
+        $bilingualData = $gemini->getBilingualDiseasesAndNutrition($plant->name);
+
+        if ($bilingualData['en'] || $bilingualData['ar']) {
+            // Store both languages
+            $plant->diseases_info = [
+                'en' => ['diseases' => $bilingualData['en']['diseases'] ?? []],
+                'ar' => ['diseases' => $bilingualData['ar']['diseases'] ?? []]
+            ];
+
+            $plant->nutrition_info = [
+                'en' => $bilingualData['en']['nutrition'] ?? null,
+                'ar' => $bilingualData['ar']['nutrition'] ?? null
+            ];
+
+            $plant->save();
+
+            $key = $language === 'ar' ? 'ar' : 'en';
+
+            return response()->json([
+                'diseases' => $plant->diseases_info[$key]['diseases'] ?? [],
+                'nutrition' => $plant->nutrition_info[$key] ?? null,
+            ]);
+        }
+
+        return response()->json([
+            'message' => 'Failed to fetch diseases and nutrition information'
+        ], 500);
+    }
 }

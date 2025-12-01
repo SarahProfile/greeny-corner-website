@@ -60,4 +60,5 @@ Route::middleware('auth:sanctum')->group(function () {
     // Gemini-based identification and data refresh
     Route::post('plants/identify-gemini', [PlantController::class, 'identifyWithGemini']);
     Route::put('plants/{id}/refresh-gemini', [PlantController::class, 'refreshGeminiData']);
+    Route::get('plants/{id}/diseases-nutrition', [PlantController::class, 'getDiseasesAndNutrition']);
 });

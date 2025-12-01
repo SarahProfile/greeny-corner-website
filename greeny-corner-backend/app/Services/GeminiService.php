@@ -114,4 +114,93 @@ Please format your response as a JSON object with the following structure:
         $result['ar'] = $this->getPlantDetails($plantName, 'ar');
         return $result;
     }
+
+    public function getDiseasesAndNutrition(string $plantName, string $language = 'en'): ?array
+    {
+        if (!$this->apiKey) {
+            Log::warning('Gemini API key not configured');
+            return null;
+        }
+
+        $languageName = $language === 'ar' ? 'Arabic' : 'English';
+
+        $prompt = "For the plant '{$plantName}', provide comprehensive information about:
+1. Common diseases that affect this plant (list at least 3-5 diseases)
+2. How to protect the plant from each disease (prevention and treatment methods)
+3. Nutritional requirements and fertilization needs
+
+Please respond in {$languageName} language.
+
+Format your response as JSON with this exact structure:
+{
+  \"diseases\": [
+    {
+      \"name\": \"disease name\",
+      \"description\": \"brief description of the disease\",
+      \"symptoms\": \"visible symptoms to look for\",
+      \"prevention\": \"how to prevent this disease\",
+      \"treatment\": \"how to treat if infected\"
+    }
+  ],
+  \"nutrition\": {
+    \"primary_nutrients\": \"NPK requirements (Nitrogen, Phosphorus, Potassium)\",
+    \"secondary_nutrients\": \"other important nutrients\",
+    \"fertilizer_type\": \"recommended fertilizer types\",
+    \"feeding_frequency\": \"how often to fertilize\",
+    \"feeding_season\": \"best seasons for fertilization\",
+    \"special_notes\": \"any special nutritional requirements or tips\"
+  }
+}
+
+Provide accurate, practical, and actionable information.";
+
+        try {
+            Log::info("Calling Gemini API for diseases and nutrition: {$plantName} in language: {$languageName}");
+
+            $response = Http::timeout(30)->post($this->apiUrl . '?key=' . $this->apiKey, [
+                'contents' => [[
+                    'parts' => [['text' => $prompt]]
+                ]],
+                'generationConfig' => [
+                    'temperature' => 0.4,
+                    'topK' => 32,
+                    'topP' => 1,
+                    'maxOutputTokens' => 8192,
+                ]
+            ]);
+
+            if ($response->successful()) {
+                $data = $response->json();
+                $text = $data['candidates'][0]['content']['parts'][0]['text'] ?? null;
+
+                if ($text) {
+                    $parsed = $this->parseGeminiResponse($text);
+
+                    if ($parsed) {
+                        Log::info('Successfully parsed Gemini diseases and nutrition response for: ' . $plantName);
+                        return $parsed;
+                    }
+                }
+            } else {
+                Log::error('Gemini API request failed', [
+                    'status' => $response->status(),
+                    'body' => $response->body()
+                ]);
+            }
+
+            return null;
+        } catch (\Exception $e) {
+            Log::error('Gemini API call failed: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    public function getBilingualDiseasesAndNutrition(string $plantName): array
+    {
+        $result = ['en' => null, 'ar' => null];
+        $result['en'] = $this->getDiseasesAndNutrition($plantName, 'en');
+        sleep(2); // Delay to avoid rate limiting
+        $result['ar'] = $this->getDiseasesAndNutrition($plantName, 'ar');
+        return $result;
+    }
 }
