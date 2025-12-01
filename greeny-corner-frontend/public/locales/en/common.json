@@ -52,7 +52,9 @@
     "sort": "Sort",
     "language": "Language",
     "english": "English",
-    "arabic": "العربية"
+    "arabic": "العربية",
+    "day": "day",
+    "daysPlural": "days"
   },
   "navigation": {
     "home": "Home",
