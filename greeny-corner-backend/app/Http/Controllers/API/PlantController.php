@@ -4375,8 +4375,8 @@ class PlantController extends Controller
             $key = $language === 'ar' ? 'ar' : 'en';
 
             return response()->json([
-                'diseases': $plant->diseases_info[$key]['diseases'] ?? [],
-                'nutrition': $plant->nutrition_info[$key] ?? null,
+                'diseases' => $plant->diseases_info[$key]['diseases'] ?? [],
+                'nutrition' => $plant->nutrition_info[$key] ?? null,
             ]);
         }
 
