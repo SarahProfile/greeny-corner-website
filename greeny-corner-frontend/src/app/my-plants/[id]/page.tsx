@@ -8,6 +8,7 @@ import { Plant, plantsAPI } from '@/lib/api';
 import { notificationService } from '@/lib/notifications';
 import Header from '@/components/Header';
 import { useTranslation } from 'react-i18next';
+import { translatePlantValue } from '@/lib/plantTranslations';
 
 interface PlantDetailPageProps {
   params: Promise<{ id: string }>;
@@ -451,7 +452,7 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
               {plant.api_data?.family && (
                 <div className="bg-gradient-to-br from-purple-50 to-pink-50 p-4 rounded-2xl border border-purple-200">
                   <dt className="text-sm font-semibold text-purple-900 mb-2">{t('plantDetail.family')}</dt>
-                  <dd className="text-sm text-purple-700 font-medium">{plant.api_data.family}</dd>
+                  <dd className="text-sm text-purple-700 font-medium">{translatePlantValue(plant.api_data.family, i18n.language)}</dd>
                 </div>
               )}
 
@@ -504,7 +505,7 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
                     <span className="text-2xl mr-2">☀️</span>
                     <span className="text-sm font-semibold text-yellow-900">{t('plantDetail.light')}</span>
                   </div>
-                  <p className="text-sm text-yellow-700 font-medium">{plant.api_data.care_info.light}</p>
+                  <p className="text-sm text-yellow-700 font-medium">{translatePlantValue(plant.api_data.care_info.light, i18n.language)}</p>
                 </div>
 
                 <div className="bg-gradient-to-br from-emerald-50 to-green-50 p-4 rounded-2xl border border-emerald-200">
@@ -512,7 +513,7 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
                     <span className="text-2xl mr-2">💨</span>
                     <span className="text-sm font-semibold text-emerald-900">{t('plantDetail.humidity')}</span>
                   </div>
-                  <p className="text-sm text-emerald-700 font-medium">{plant.api_data.care_info.humidity}</p>
+                  <p className="text-sm text-emerald-700 font-medium">{translatePlantValue(plant.api_data.care_info.humidity, i18n.language)}</p>
                 </div>
 
                 <div className="bg-gradient-to-br from-red-50 to-pink-50 p-4 rounded-2xl border border-red-200">
@@ -520,7 +521,7 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
                     <span className="text-2xl mr-2">🌡️</span>
                     <span className="text-sm font-semibold text-red-900">{t('plantDetail.temperature')}</span>
                   </div>
-                  <p className="text-sm text-red-700 font-medium">{plant.api_data.care_info.temperature}</p>
+                  <p className="text-sm text-red-700 font-medium">{translatePlantValue(plant.api_data.care_info.temperature, i18n.language)}</p>
                 </div>
               </div>
 
