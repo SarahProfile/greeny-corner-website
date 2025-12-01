@@ -196,6 +196,28 @@ export const plantValueTranslations: Record<string, Record<string, string>> = {
   'bright, indirect light': {
     ar: 'ضوء ساطع غير مباشر',
     en: 'bright, indirect light'
+  },
+
+  // Common descriptions
+  'a beautiful houseplant that brings natural beauty and fresh air to your living space': {
+    ar: 'نبات منزلي جميل يضفي جمالاً طبيعياً وهواءً نقياً على مساحتك المعيشية',
+    en: 'A beautiful houseplant that brings natural beauty and fresh air to your living space'
+  },
+  'beautiful houseplant': {
+    ar: 'نبات منزلي جميل',
+    en: 'beautiful houseplant'
+  },
+  'natural beauty': {
+    ar: 'جمال طبيعي',
+    en: 'natural beauty'
+  },
+  'fresh air': {
+    ar: 'هواء نقي',
+    en: 'fresh air'
+  },
+  'living space': {
+    ar: 'مساحة المعيشة',
+    en: 'living space'
   }
 };
 

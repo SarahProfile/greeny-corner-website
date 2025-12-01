@@ -331,7 +331,7 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
               )}
 
               {plant.api_data?.description && (
-                <p className="text-gray-700 leading-relaxed">{plant.api_data.description}</p>
+                <p className="text-gray-700 leading-relaxed">{translatePlantValue(plant.api_data.description, i18n.language)}</p>
               )}
             </div>
 
