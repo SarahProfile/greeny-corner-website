@@ -32,40 +32,47 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   useEffect(() => {
     console.log('🔍 AuthContext: Initializing authentication state');
-    try {
-      const token = localStorage.getItem('auth_token');
-      const storedUser = localStorage.getItem('user');
-      
-      console.log('🔍 AuthContext: Found token:', token ? 'YES' : 'NO');
-      console.log('🔍 AuthContext: Found user data:', storedUser ? 'YES' : 'NO');
 
-      if (token && storedUser && storedUser !== 'undefined' && storedUser !== 'null') {
-        try {
-          const parsed = JSON.parse(storedUser);
-          if (parsed && (parsed.id || parsed.uid)) {
-            console.log('✅ AuthContext: Restoring user session');
-            setUser(parsed);
-            console.log('✅ AuthContext: User session restored successfully');
-          } else {
-            console.log('❌ AuthContext: Invalid user data structure');
+    const initAuth = async () => {
+      try {
+        const token = localStorage.getItem('auth_token');
+        const storedUser = localStorage.getItem('user');
+
+        console.log('🔍 AuthContext: Found token:', token ? 'YES' : 'NO');
+        console.log('🔍 AuthContext: Found user data:', storedUser ? 'YES' : 'NO');
+
+        if (token && storedUser && storedUser !== 'undefined' && storedUser !== 'null') {
+          try {
+            const parsed = JSON.parse(storedUser);
+            if (parsed && (parsed.id || parsed.uid)) {
+              console.log('✅ AuthContext: Restoring user session');
+              setUser(parsed);
+              console.log('✅ AuthContext: User session restored successfully');
+            } else {
+              console.log('❌ AuthContext: Invalid user data structure');
+              localStorage.removeItem('auth_token');
+              localStorage.removeItem('user');
+            }
+          } catch (parseError) {
+            console.error('❌ AuthContext: Error parsing stored user data:', parseError);
             localStorage.removeItem('auth_token');
             localStorage.removeItem('user');
           }
-        } catch (parseError) {
-          console.error('❌ AuthContext: Error parsing stored user data:', parseError);
-          localStorage.removeItem('auth_token');
-          localStorage.removeItem('user');
+        } else {
+          console.log('❌ AuthContext: No valid session found');
         }
-      } else {
-        console.log('❌ AuthContext: No valid session found');
+      } catch (error) {
+        console.error('❌ AuthContext: Error during initialization:', error);
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('user');
+      } finally {
+        // Always set loading to false, even if there's an error
+        setLoading(false);
+        console.log('🏁 AuthContext: Initialization complete');
       }
-    } catch (error) {
-      console.error('❌ AuthContext: Error during initialization:', error);
-      localStorage.removeItem('auth_token');
-      localStorage.removeItem('user');
-    }
-    setLoading(false);
-    console.log('🏁 AuthContext: Initialization complete');
+    };
+
+    initAuth();
   }, []);
 
   const login = async (email: string, password: string) => {
