@@ -143,7 +143,8 @@ const resources = {
         "getStartedText": "Get started by adding your first plant.",
         "nextWateringDate": "Next watering",
         "notificationPermission": "Get reminded when your plants need watering!",
-        "loadingPlants": "Loading your plants..."
+        "loadingPlants": "Loading your plants...",
+        "overdueWatering": "Overdue watering"
       },
       "app": {
         "title": "Greeny Corner",
@@ -391,7 +392,8 @@ const resources = {
         "getStartedText": "ابدأ بإضافة نبتتك الأولى.",
         "nextWateringDate": "السقي التالي",
         "notificationPermission": "احصل على تذكير عندما تحتاج نباتاتك للري!",
-        "loadingPlants": "جار تحميل نباتاتك..."
+        "loadingPlants": "جار تحميل نباتاتك...",
+        "overdueWatering": "سقي متأخر"
       },
       "app": {
         "title": "جريني كورنر",
