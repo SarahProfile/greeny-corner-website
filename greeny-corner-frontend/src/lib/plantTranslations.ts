@@ -173,6 +173,10 @@ export const plantValueTranslations: Record<string, Record<string, string>> = {
   },
 
   // Care tips (common phrases)
+  'water when top soil feels dry. place in bright, indirect light.': {
+    ar: 'اسقِ عندما تشعر أن التربة العلوية جافة. ضع في ضوء ساطع غير مباشر.',
+    en: 'Water when top soil feels dry. Place in bright, indirect light.'
+  },
   'water when top soil feels dry': {
     ar: 'اسقِ عندما تشعر أن التربة العلوية جافة',
     en: 'Water when top soil feels dry'
@@ -232,9 +236,33 @@ export function translatePlantValue(value: string | null | undefined, language: 
 
   const lowerValue = value.toLowerCase().trim();
 
-  // Check for exact match
+  // Check for exact match (case-insensitive)
   if (plantValueTranslations[lowerValue]) {
     return plantValueTranslations[lowerValue][language] || value;
+  }
+
+  // Try to translate sentence by sentence for multi-sentence text
+  if (value.includes('. ')) {
+    const sentences = value.split('. ');
+    const translatedSentences = sentences.map(sentence => {
+      const trimmedSentence = sentence.trim();
+      const lowerSentence = trimmedSentence.toLowerCase();
+
+      // Check if this sentence has a translation
+      if (plantValueTranslations[lowerSentence]) {
+        return plantValueTranslations[lowerSentence][language] || trimmedSentence;
+      }
+
+      // Try with period at the end
+      if (plantValueTranslations[lowerSentence + '.']) {
+        return plantValueTranslations[lowerSentence + '.'][language] || trimmedSentence;
+      }
+
+      // Return original sentence if no translation
+      return trimmedSentence;
+    });
+
+    return translatedSentences.join('. ');
   }
 
   // Check for partial matches (case-insensitive)
