@@ -215,7 +215,10 @@ export const plantsAPI = {
   },
 
   getDiseasesAndNutrition: async (id: number) => {
-    const language = (typeof window !== 'undefined' ? localStorage.getItem('i18nextLng') : null) || 'en';
+    // Check both possible language keys in localStorage
+    const language = (typeof window !== 'undefined'
+      ? (localStorage.getItem('i18nextLng') || localStorage.getItem('language'))
+      : null) || 'en';
     console.log('[API] Fetching diseases/nutrition with language:', language);
     const response = await api.get(`/plants/${id}/diseases-nutrition?language=${language}`);
     console.log('[API] Received diseases/nutrition data:', response.data);
