@@ -347,13 +347,31 @@ export default function Header({ showUserInfo = true }: HeaderProps) {
                                     {notification.emoji}{' '}
                                     {notification.titleKey && notification.data
                                       ? (() => {
-                                          // For overdue notifications, ensure all required data is present
+                                          // For overdue notifications, ensure all required data is present and translate action/careType
                                           if (notification.titleKey === 'plants.overdueTitle') {
+                                            const rawAction = notification.data.action || 'care';
+                                            const rawCareType = notification.data.careType || 'watering';
+
+                                            // Map action to translation key
+                                            const actionKeyMap: Record<string, string> = {
+                                              'water': 'plants.actionWater',
+                                              'fertilize': 'plants.actionFertilize',
+                                              'till': 'plants.actionTill',
+                                              'care': 'plants.actionCare'
+                                            };
+
+                                            // Map careType to translation key
+                                            const careTypeKeyMap: Record<string, string> = {
+                                              'watering': 'plants.careTypeWatering',
+                                              'fertilizing': 'plants.careTypeFertilizing',
+                                              'tilling': 'plants.careTypeTilling'
+                                            };
+
                                             const completeData = {
                                               plantName: notification.data.plantName || 'Plant',
-                                              action: notification.data.action || 'care',
+                                              action: String(t(actionKeyMap[rawAction] || 'plants.actionCare')),
                                               days: notification.data.days || '0',
-                                              careType: notification.data.careType || 'watering'
+                                              careType: String(t(careTypeKeyMap[rawCareType] || 'plants.careTypeWatering'))
                                             };
                                             return String(t(notification.titleKey, completeData));
                                           }
@@ -364,13 +382,31 @@ export default function Header({ showUserInfo = true }: HeaderProps) {
                                   <p className="text-sm text-gray-600 mt-1">
                                     {notification.messageKey && notification.data
                                       ? (() => {
-                                          // For overdue notifications, ensure all required data is present
+                                          // For overdue notifications, ensure all required data is present and translate action/careType
                                           if (notification.messageKey === 'plants.overdueMessage') {
+                                            const rawAction = notification.data.action || 'care';
+                                            const rawCareType = notification.data.careType || 'watering';
+
+                                            // Map action to translation key
+                                            const actionKeyMap: Record<string, string> = {
+                                              'water': 'plants.actionWater',
+                                              'fertilize': 'plants.actionFertilize',
+                                              'till': 'plants.actionTill',
+                                              'care': 'plants.actionCare'
+                                            };
+
+                                            // Map careType to translation key
+                                            const careTypeKeyMap: Record<string, string> = {
+                                              'watering': 'plants.careTypeWatering',
+                                              'fertilizing': 'plants.careTypeFertilizing',
+                                              'tilling': 'plants.careTypeTilling'
+                                            };
+
                                             const completeData = {
                                               plantName: notification.data.plantName || 'Plant',
-                                              action: notification.data.action || 'care',
+                                              action: String(t(actionKeyMap[rawAction] || 'plants.actionCare')),
                                               days: notification.data.days || '0',
-                                              careType: notification.data.careType || 'watering'
+                                              careType: String(t(careTypeKeyMap[rawCareType] || 'plants.careTypeWatering'))
                                             };
                                             return String(t(notification.messageKey, completeData));
                                           }
