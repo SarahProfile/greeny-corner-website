@@ -5,7 +5,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Plant, plantsAPI } from '@/lib/api';
-import { notificationService } from '@/lib/notifications';
 import Header from '@/components/Header';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import { useTranslation } from 'react-i18next';
@@ -14,21 +13,10 @@ export default function MyPlantsPage() {
   const [plants, setPlants] = useState<Plant[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-  const [browserPermissionGranted, setBrowserPermissionGranted] = useState(false);
-  const [showNotificationPrompt, setShowNotificationPrompt] = useState(false);
-  const [notificationsSupported, setNotificationsSupported] = useState(true);
 
   const { user, logout, loading: authLoading } = useAuth();
   const router = useRouter();
   const { t } = useTranslation();
-
-  useEffect(() => {
-    // Check if notifications are supported
-    if (typeof window !== 'undefined') {
-      setNotificationsSupported('Notification' in window);
-    }
-  }, []);
 
   useEffect(() => {
     console.log('🔍 MyPlants: Auth check - authLoading:', authLoading, 'user:', user ? 'exists' : 'null');
@@ -46,15 +34,7 @@ export default function MyPlantsPage() {
 
     console.log('✅ MyPlants: User authenticated, fetching plants');
     fetchPlants();
-    checkNotificationPermission();
   }, [user, authLoading]);
-
-  useEffect(() => {
-    if (plants.length > 0 && notificationsEnabled) {
-      notificationService.checkOverduePlants(plants);
-      notificationService.scheduleAllPlantNotifications(plants);
-    }
-  }, [plants, notificationsEnabled]);
 
   useEffect(() => {
     const handleLanguageChange = (event: CustomEvent) => {
@@ -65,115 +45,6 @@ export default function MyPlantsPage() {
       window.removeEventListener('languageChanged', handleLanguageChange as EventListener);
     };
   }, []);
-
-  const checkNotificationPermission = async () => {
-    const enabled = notificationService.getNotificationsEnabled();
-    const canSend = notificationService.canSendNotifications();
-    setNotificationsEnabled(enabled);
-    setBrowserPermissionGranted(canSend);
-    if (enabled && !canSend) {
-      setShowNotificationPrompt(true);
-    }
-  };
-
-  const isIOS = () => {
-    return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-           (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  };
-
-  const isSafari = () => {
-    return /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-  };
-
-  const getIOSVersion = () => {
-    const match = navigator.userAgent.match(/OS (\d+)_(\d+)_?(\d+)?/);
-    if (match) {
-      return {
-        major: parseInt(match[1], 10),
-        minor: parseInt(match[2], 10),
-        patch: parseInt(match[3] || '0', 10)
-      };
-    }
-    return null;
-  };
-
-  const enableNotifications = async (e?: React.MouseEvent) => {
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-
-    const isIOSDevice = isIOS();
-    const isSafariBrowser = isSafari();
-
-    // Log for debugging
-    console.log('Browser detection:', {
-      isIOS: isIOSDevice,
-      isSafari: isSafariBrowser,
-      hasNotification: 'Notification' in window,
-      userAgent: navigator.userAgent
-    });
-
-    // Check if notifications are supported
-    if (!('Notification' in window)) {
-      if (isIOSDevice && !isSafariBrowser) {
-        alert(
-          t('plants.notificationIOSChrome') ||
-          'Notifications are not supported in Chrome on iOS. Please use Safari browser to enable notifications.'
-        );
-      } else if (isIOSDevice && isSafariBrowser) {
-        const iosVersion = getIOSVersion();
-        const versionText = iosVersion ? ` (iOS ${iosVersion.major})` : '';
-        alert(
-          t('plants.notificationIOSSafari') ||
-          `Notifications on Safari for iOS${versionText} may require adding this website to your Home Screen first. Go to Share → Add to Home Screen, then open the app from your home screen and try again.`
-        );
-      } else {
-        alert(
-          t('plants.notificationNotSupported') ||
-          'Notifications are not supported in this browser. Please try using a different browser.'
-        );
-      }
-      setShowNotificationPrompt(false);
-      return;
-    }
-
-    try {
-      const granted = await notificationService.requestPermission();
-      if (granted) {
-        notificationService.setNotificationsEnabled(true);
-        setNotificationsEnabled(true);
-        setBrowserPermissionGranted(true);
-        setShowNotificationPrompt(false);
-
-        if (plants.length > 0) {
-          notificationService.checkOverduePlants(plants);
-          notificationService.scheduleAllPlantNotifications(plants);
-        }
-      } else {
-        // User denied permission
-        notificationService.setNotificationsEnabled(false);
-        setNotificationsEnabled(false);
-        setBrowserPermissionGranted(false);
-        alert(t('plants.notificationDenied') || 'Notification permission was denied. Please enable it in your browser settings.');
-        setShowNotificationPrompt(false);
-      }
-    } catch (error) {
-      console.error('Error enabling notifications:', error);
-      alert(t('plants.notificationError') || 'Failed to enable notifications. Please try again.');
-    }
-  };
-
-  const disableNotifications = (e?: React.MouseEvent) => {
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-    notificationService.setNotificationsEnabled(false);
-    setNotificationsEnabled(false);
-    setBrowserPermissionGranted(false);
-    setShowNotificationPrompt(false);
-  };
 
   const fetchPlants = async () => {
     try {
@@ -249,26 +120,6 @@ export default function MyPlantsPage() {
               </p>
             </div>
             <div className="mt-4 sm:mt-0 flex flex-col sm:flex-row gap-3">
-              {notificationsSupported && (
-                <button
-                  onClick={() => setShowNotificationPrompt(true)}
-                  className={`inline-flex items-center justify-center px-5 py-3 border-2 text-base font-semibold rounded-xl shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-200 ${
-                    notificationsEnabled && browserPermissionGranted
-                      ? 'border-green-500 text-green-700 bg-green-50 hover:bg-green-100'
-                      : 'border-orange-500 text-orange-700 bg-orange-50 hover:bg-orange-100'
-                  }`}
-                  title={notificationsEnabled ? t('plants.notificationSettings') || 'Notification Settings' : t('plants.enableNotifications')}
-                >
-                  <span className="text-2xl mr-2">
-                    {notificationsEnabled && browserPermissionGranted ? '🔔' : '🔕'}
-                  </span>
-                  <span className="hidden sm:inline">
-                    {notificationsEnabled && browserPermissionGranted
-                      ? t('plants.notifications') || 'Notifications'
-                      : t('plants.enableNotifications')}
-                  </span>
-                </button>
-              )}
               <Link
                 href="/add-plant"
                 className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-xl text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
@@ -428,127 +279,6 @@ export default function MyPlantsPage() {
           </div>
         )}
       </main>
-
-      {/* Notification Permission Modal */}
-      {showNotificationPrompt && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn"
-          onClick={(e) => {
-            // Only close if clicking the backdrop itself
-            if (e.target === e.currentTarget) {
-              disableNotifications(e);
-            }
-          }}
-        >
-          <div
-            className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl transform animate-slideUp"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center mb-6">
-              <div className="flex-shrink-0">
-                <div className="w-16 h-16 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-2xl flex items-center justify-center">
-                  <span className="text-3xl">🔔</span>
-                </div>
-              </div>
-              <div className="ml-4">
-                <h3 className="text-2xl font-bold text-gray-900">
-                  {notificationsEnabled && browserPermissionGranted
-                    ? t('plants.notificationSettings') || 'Notification Settings'
-                    : t('plants.enableNotifications')}
-                </h3>
-              </div>
-            </div>
-            <div className="mb-6">
-              {notificationsEnabled && browserPermissionGranted ? (
-                <div className="bg-green-50 border-l-4 border-green-400 p-4 mb-6 rounded-lg">
-                  <div className="flex items-center">
-                    <svg className="w-5 h-5 text-green-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                    </svg>
-                    <p className="text-green-700 font-medium">
-                      {t('plants.notificationsEnabled') || 'Notifications are enabled'}
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-gray-600 mb-6">
-                  {t('plants.notificationDescription')}
-                </p>
-              )}
-              <div className="space-y-4">
-                <div className="flex items-start">
-                  <div className="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <span className="text-xl">💧</span>
-                  </div>
-                  <div className="ml-4">
-                    <h4 className="font-semibold text-gray-900">{t('plants.wateringReminders')}</h4>
-                    <p className="text-sm text-gray-600">{t('plants.neverForget')}</p>
-                  </div>
-                </div>
-                <div className="flex items-start">
-                  <div className="flex-shrink-0 w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
-                    <span className="text-xl">⚠️</span>
-                  </div>
-                  <div className="ml-4">
-                    <h4 className="font-semibold text-gray-900">{t('plants.overdueAlerts')}</h4>
-                    <p className="text-sm text-gray-600">{t('plants.keepOnTrack')}</p>
-                  </div>
-                </div>
-                <div className="flex items-start">
-                  <div className="flex-shrink-0 w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                    <span className="text-xl">🕐</span>
-                  </div>
-                  <div className="ml-4">
-                    <h4 className="font-semibold text-gray-900">{t('plants.advanceWarnings')}</h4>
-                    <p className="text-sm text-gray-600">{t('plants.planAhead')}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="flex space-x-3">
-              {notificationsEnabled && browserPermissionGranted ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={disableNotifications}
-                    className="flex-1 bg-red-100 hover:bg-red-200 text-red-700 font-semibold py-3 px-6 rounded-xl transition-colors cursor-pointer"
-                  >
-                    {t('plants.disableButton') || 'Disable Notifications'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setShowNotificationPrompt(false);
-                    }}
-                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all cursor-pointer"
-                  >
-                    {t('plants.closeButton') || 'Close'}
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    onClick={disableNotifications}
-                    className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold py-3 px-6 rounded-xl transition-colors cursor-pointer"
-                  >
-                    {t('plants.laterButton')}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={enableNotifications}
-                    className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all cursor-pointer"
-                  >
-                    {t('plants.enableButton')}
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
       <style jsx global>{`
         @keyframes fadeIn {
