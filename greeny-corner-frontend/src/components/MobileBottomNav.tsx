@@ -50,31 +50,36 @@ export default function MobileBottomNav() {
               const newMessageKey = n.messageKey.replace('notifications.', 'plants.');
 
               // For overdue notifications, ensure we have all required data
-              if (newTitleKey === 'plants.overdueTitle' && n.data && !n.data.action) {
-                // Try to extract missing data from stored title/message if available
-                const titleMatch = n.title?.match(/🚨 (.+) needs (.+)!/);
-                const messageMatch = n.message?.match(/Your (.+) is (\d+) day\(s\) overdue for (.+)\./);
+              if (newTitleKey === 'plants.overdueTitle') {
+                // Check if data has all required fields
+                const hasAllData = n.data && n.data.action && n.data.days && n.data.careType;
 
-                let action = 'care';
-                let days = '0';
-                let careType = 'care';
+                if (!hasAllData) {
+                  // Try to extract missing data from stored title/message if available
+                  const titleMatch = n.title?.match(/🚨 (.+) needs (.+)!/);
+                  const messageMatch = n.message?.match(/Your (.+) is (\d+) day\(s\) overdue for (.+)\./);
 
-                if (titleMatch && titleMatch[2]) {
-                  action = titleMatch[2];
+                  let action = n.data?.action || 'water';
+                  let days = n.data?.days || '0';
+                  let careType = n.data?.careType || 'watering';
+
+                  if (titleMatch && titleMatch[2]) {
+                    action = titleMatch[2];
+                  }
+
+                  if (messageMatch) {
+                    days = messageMatch[2];
+                    careType = messageMatch[3];
+                  }
+
+                  return {
+                    ...n,
+                    titleKey: newTitleKey,
+                    messageKey: newMessageKey,
+                    data: { ...n.data, plantName: n.data?.plantName, action, days, careType },
+                    timestamp: new Date(n.timestamp)
+                  };
                 }
-
-                if (messageMatch) {
-                  days = messageMatch[2];
-                  careType = messageMatch[3];
-                }
-
-                return {
-                  ...n,
-                  titleKey: newTitleKey,
-                  messageKey: newMessageKey,
-                  data: { ...n.data, action, days, careType },
-                  timestamp: new Date(n.timestamp)
-                };
               }
 
               return {
