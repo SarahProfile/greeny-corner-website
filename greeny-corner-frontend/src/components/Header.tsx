@@ -206,14 +206,14 @@ export default function Header({ showUserInfo = true }: HeaderProps) {
                                 </div>
                                 <div className="ml-3 flex-1">
                                   <p className={`text-sm ${!notification.read ? 'font-semibold' : 'font-normal'} text-gray-900`}>
-                                    {notification.emoji && ' '}{notification.emoji}
+                                    {notification.emoji}{' '}
                                     {notification.titleKey && notification.data
-                                      ? t(notification.titleKey, notification.data)
+                                      ? String(t(notification.titleKey, notification.data))
                                       : notification.title}
                                   </p>
                                   <p className="text-sm text-gray-600 mt-1">
                                     {notification.messageKey && notification.data
-                                      ? t(notification.messageKey, notification.data)
+                                      ? String(t(notification.messageKey, notification.data))
                                       : notification.message}
                                   </p>
                                   <p className="text-xs text-gray-400 mt-1">
