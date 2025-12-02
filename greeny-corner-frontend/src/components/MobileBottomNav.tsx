@@ -212,6 +212,17 @@ export default function MobileBottomNav() {
     localStorage.setItem('notification_history', JSON.stringify(updated));
   };
 
+  const handleNotificationItemClick = (notification: any) => {
+    // Mark as read
+    markAsRead(notification.id);
+
+    // Navigate to plant page if we have a plant ID
+    if (notification.data?.plantId) {
+      setShowNotifications(false);
+      router.push(`/my-plants/${notification.data.plantId}`);
+    }
+  };
+
   const clearAll = () => {
     setNotifications([]);
     localStorage.removeItem('notification_history');
@@ -279,7 +290,7 @@ export default function MobileBottomNav() {
                 notifications.map((notification) => (
                   <div
                     key={notification.id}
-                    onClick={() => markAsRead(notification.id)}
+                    onClick={() => handleNotificationItemClick(notification)}
                     className={`px-4 py-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors ${
                       !notification.read ? 'bg-blue-50' : ''
                     }`}
