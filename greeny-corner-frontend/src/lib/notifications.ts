@@ -75,7 +75,7 @@ export class NotificationService {
     bodyKey: string;
   }): Promise<void> {
     // Save to notification history in localStorage with translation keys
-    this.saveNotificationToHistory(config.emoji, config.titleKey, config.bodyKey, { plantName });
+    this.saveNotificationToHistory(config.emoji, config.titleKey, config.bodyKey, { plantName, plantId });
 
     if (!this.canSendNotifications()) {
       console.warn('Cannot send notification - permission not granted, but saved to history');
