@@ -216,10 +216,15 @@ export default function MobileBottomNav() {
     // Mark as read
     markAsRead(notification.id);
 
-    // Navigate to plant page if we have a plant ID
+    // Close notification dropdown
+    setShowNotifications(false);
+
+    // Navigate to plant page if we have a plant ID, otherwise go to My Plants list
     if (notification.data?.plantId) {
-      setShowNotifications(false);
       router.push(`/my-plants/${notification.data.plantId}`);
+    } else {
+      // Fallback: navigate to My Plants page
+      router.push('/my-plants');
     }
   };
 
