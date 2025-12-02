@@ -237,15 +237,14 @@ export default function Header({ showUserInfo = true }: HeaderProps) {
     // Mark as read
     markAsRead(notification.id);
 
-    // Close notification dropdown
-    setShowNotifications(false);
-
-    // Navigate to plant page if we have a plant ID, otherwise go to My Plants list
+    // Only navigate if we have a plant ID
     if (notification.data?.plantId) {
+      setShowNotifications(false);
       router.push(`/my-plants/${notification.data.plantId}`);
     } else {
-      // Fallback: navigate to My Plants page
-      router.push('/my-plants');
+      // For old notifications without plantId, just mark as read but don't navigate
+      // User should clear old notifications to get clickable ones
+      console.log('Notification missing plantId. Please clear old notifications.');
     }
   };
 
