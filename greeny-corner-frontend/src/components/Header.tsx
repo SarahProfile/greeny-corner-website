@@ -69,23 +69,40 @@ export default function Header({ showUserInfo = true }: HeaderProps) {
 
   const handleNotificationClick = () => {
     // Simply toggle the dropdown - no permission needed
+    console.log('Notification bell clicked. Current state:', showNotifications);
+    console.log('Current notifications:', notifications);
     setShowNotifications(!showNotifications);
   };
 
   const handleTestNotification = () => {
-    notificationService.sendTestNotification();
-    // Reload notifications immediately
-    const storedNotifications = localStorage.getItem('notification_history');
-    if (storedNotifications) {
-      try {
-        const parsed = JSON.parse(storedNotifications);
-        setNotifications(parsed.map((n: any) => ({
-          ...n,
-          timestamp: new Date(n.timestamp)
-        })));
-      } catch (e) {
-        console.error('Failed to parse notifications:', e);
-      }
+    // Directly add a test notification to localStorage
+    try {
+      const existingNotifications = localStorage.getItem('notification_history');
+      const notifications = existingNotifications ? JSON.parse(existingNotifications) : [];
+
+      const newNotification = {
+        id: `test-${Date.now()}`,
+        title: '🌿 Test Notification',
+        message: 'This is a test notification to verify the notification bell is working correctly.',
+        timestamp: new Date().toISOString(),
+        read: false
+      };
+
+      notifications.unshift(newNotification);
+      localStorage.setItem('notification_history', JSON.stringify(notifications));
+
+      // Reload notifications
+      setNotifications(notifications.map((n: any) => ({
+        ...n,
+        timestamp: new Date(n.timestamp)
+      })));
+
+      console.log('Test notification added:', newNotification);
+      console.log('Total notifications:', notifications.length);
+      alert(`Test notification added! Total: ${notifications.length}. Click the bell icon to see it.`);
+    } catch (e) {
+      console.error('Failed to add test notification:', e);
+      alert('Error adding notification: ' + e);
     }
   };
 
