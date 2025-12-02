@@ -46,10 +46,41 @@ export default function MobileBottomNav() {
 
             // If it has old notification.* keys, need to re-migrate
             if (n.titleKey && n.titleKey.startsWith('notifications.')) {
+              const newTitleKey = n.titleKey.replace('notifications.', 'plants.');
+              const newMessageKey = n.messageKey.replace('notifications.', 'plants.');
+
+              // For overdue notifications, ensure we have all required data
+              if (newTitleKey === 'plants.overdueTitle' && n.data && !n.data.action) {
+                // Try to extract missing data from stored title/message if available
+                const titleMatch = n.title?.match(/🚨 (.+) needs (.+)!/);
+                const messageMatch = n.message?.match(/Your (.+) is (\d+) day\(s\) overdue for (.+)\./);
+
+                let action = 'care';
+                let days = '0';
+                let careType = 'care';
+
+                if (titleMatch && titleMatch[2]) {
+                  action = titleMatch[2];
+                }
+
+                if (messageMatch) {
+                  days = messageMatch[2];
+                  careType = messageMatch[3];
+                }
+
+                return {
+                  ...n,
+                  titleKey: newTitleKey,
+                  messageKey: newMessageKey,
+                  data: { ...n.data, action, days, careType },
+                  timestamp: new Date(n.timestamp)
+                };
+              }
+
               return {
                 ...n,
-                titleKey: n.titleKey.replace('notifications.', 'plants.'),
-                messageKey: n.messageKey.replace('notifications.', 'plants.'),
+                titleKey: newTitleKey,
+                messageKey: newMessageKey,
                 timestamp: new Date(n.timestamp)
               };
             }
