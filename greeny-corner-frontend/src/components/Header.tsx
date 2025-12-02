@@ -15,7 +15,8 @@ interface HeaderProps {
 export default function Header({ showUserInfo = true }: HeaderProps) {
   const { user, logout } = useAuth();
   const router = useRouter();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isRTL = i18n.language === 'ar';
   const [showNotifications, setShowNotifications] = useState(false);
   const [showAccountMenu, setShowAccountMenu] = useState(false);
   const [notifications, setNotifications] = useState<Array<{
@@ -130,7 +131,7 @@ export default function Header({ showUserInfo = true }: HeaderProps) {
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                     </svg>
-                    <span>Add Plant</span>
+                    <span>{t('navigation.addPlant')}</span>
                   </Link>
                   <Link
                     href="/account"
@@ -158,7 +159,7 @@ export default function Header({ showUserInfo = true }: HeaderProps) {
 
                   {/* Notification Dropdown - Facebook Style */}
                   {showNotifications && (
-                    <div className="fixed right-4 top-16 w-96 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-[500px] overflow-hidden flex flex-col">
+                    <div className={`fixed ${isRTL ? 'left-4' : 'right-4'} top-16 w-96 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-[500px] overflow-hidden flex flex-col`}>
                       {/* Header */}
                       <div className="px-4 py-3 border-b border-gray-200 flex justify-between items-center">
                         <h3 className="text-lg font-semibold text-gray-900">{t('nav.notifications')}</h3>
@@ -240,7 +241,7 @@ export default function Header({ showUserInfo = true }: HeaderProps) {
 
                   {/* Account Dropdown Menu */}
                   {showAccountMenu && (
-                    <div className="fixed right-4 top-16 w-56 bg-white rounded-lg shadow-xl border border-gray-200 z-50 py-1">
+                    <div className={`fixed ${isRTL ? 'left-4' : 'right-4'} top-16 w-56 bg-white rounded-lg shadow-xl border border-gray-200 z-50 py-1`}>
                       <div className="px-4 py-3 border-b border-gray-200">
                         <p className="text-sm font-semibold text-gray-900">{user.name}</p>
                         <p className="text-xs text-gray-500 mt-1">{user.email}</p>
