@@ -48,42 +48,54 @@ export class NotificationService {
   sendWateringReminder(plantName: string, plantId: number): void {
     this.sendCareReminder('watering', plantName, plantId, {
       emoji: '💧',
-      title: `Time to water ${plantName}!`,
-      body: `Your ${plantName} is ready for watering. Tap to view plant details.`
+      titleKey: 'notifications.wateringTitle',
+      bodyKey: 'notifications.wateringMessage'
     }).catch(console.error);
   }
 
   sendFertilizingReminder(plantName: string, plantId: number): void {
     this.sendCareReminder('fertilizing', plantName, plantId, {
       emoji: '🌱',
-      title: `Time to fertilize ${plantName}!`,
-      body: `Your ${plantName} is ready for fertilizing. Give it some nutrients!`
+      titleKey: 'notifications.fertilizingTitle',
+      bodyKey: 'notifications.fertilizingMessage'
     }).catch(console.error);
   }
 
   sendTillingReminder(plantName: string, plantId: number): void {
     this.sendCareReminder('tilling', plantName, plantId, {
       emoji: '🪴',
-      title: `Time to till ${plantName}!`,
-      body: `Your ${plantName} needs soil tilling. Time to loosen the soil!`
+      titleKey: 'notifications.tillingTitle',
+      bodyKey: 'notifications.tillingMessage'
     }).catch(console.error);
   }
 
   private async sendCareReminder(careType: string, plantName: string, plantId: number, config: {
     emoji: string;
-    title: string;
-    body: string;
+    titleKey: string;
+    bodyKey: string;
   }): Promise<void> {
-    const notificationTitle = `${config.emoji} ${config.title}`;
-    const notificationBody = config.body;
-
-    // Save to notification history in localStorage
-    this.saveNotificationToHistory(notificationTitle, notificationBody);
+    // Save to notification history in localStorage with translation keys
+    this.saveNotificationToHistory(config.emoji, config.titleKey, config.bodyKey, { plantName });
 
     if (!this.canSendNotifications()) {
       console.warn('Cannot send notification - permission not granted, but saved to history');
       return;
     }
+
+    // For browser notifications, use English as fallback (browser notifications don't support i18n)
+    const englishTitles: Record<string, string> = {
+      'notifications.wateringTitle': `Time to water ${plantName}!`,
+      'notifications.fertilizingTitle': `Time to fertilize ${plantName}!`,
+      'notifications.tillingTitle': `Time to till ${plantName}!`
+    };
+    const englishBodies: Record<string, string> = {
+      'notifications.wateringMessage': `Your ${plantName} is ready for watering. Tap to view plant details.`,
+      'notifications.fertilizingMessage': `Your ${plantName} is ready for fertilizing. Give it some nutrients!`,
+      'notifications.tillingMessage': `Your ${plantName} needs soil tilling. Time to loosen the soil!`
+    };
+
+    const notificationTitle = `${config.emoji} ${englishTitles[config.titleKey] || plantName}`;
+    const notificationBody = englishBodies[config.bodyKey] || `Your ${plantName} needs attention.`;
 
     const notificationOptions = {
       body: notificationBody,
@@ -185,11 +197,12 @@ export class NotificationService {
       };
 
       setTimeout(() => {
-        const title = `${emojiMap[careType as keyof typeof emojiMap]} ${plantName} ${careType} reminder`;
+        const emoji = emojiMap[careType as keyof typeof emojiMap];
+        const title = `${emoji} ${plantName} ${careType} reminder`;
         const body = `Your ${plantName} will need ${careType} in 1 hour.`;
 
-        // Save to notification history
-        this.saveNotificationToHistory(title, body);
+        // Save to notification history with translation keys
+        this.saveNotificationToHistory(emoji, 'notifications.preReminderTitle', 'notifications.preReminderMessage', { plantName, careType });
 
         if (this.canSendNotifications()) {
           new Notification(title, {
@@ -231,8 +244,13 @@ export class NotificationService {
       const title = `🚨 ${plant.name} needs ${action}!`;
       const body = `Your ${plant.name} is ${daysPast} day(s) overdue for ${careType}.`;
 
-      // Save to notification history
-      this.saveNotificationToHistory(title, body);
+      // Save to notification history with translation keys
+      this.saveNotificationToHistory('🚨', 'notifications.overdueTitle', 'notifications.overdueMessage', {
+        plantName: plant.name,
+        action,
+        days: daysPast,
+        careType
+      });
 
       if (this.canSendNotifications()) {
         new Notification(title, {
@@ -280,7 +298,7 @@ export class NotificationService {
   }
 
   // Save notification to history in localStorage
-  private saveNotificationToHistory(title: string, message: string): void {
+  private saveNotificationToHistory(emoji: string, titleKey: string, messageKey: string, data: any): void {
     if (typeof window === 'undefined') return;
 
     try {
@@ -288,11 +306,13 @@ export class NotificationService {
       const existingNotifications = localStorage.getItem('notification_history');
       const notifications = existingNotifications ? JSON.parse(existingNotifications) : [];
 
-      // Create new notification object
+      // Create new notification object with translation keys
       const newNotification = {
         id: `notif-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        title,
-        message,
+        emoji,
+        titleKey,
+        messageKey,
+        data, // Contains plantName and other variables for interpolation
         timestamp: new Date().toISOString(),
         read: false
       };
@@ -313,8 +333,10 @@ export class NotificationService {
   // Public method to send a test notification (for testing purposes)
   sendTestNotification(): void {
     this.saveNotificationToHistory(
-      '🌿 Test Notification',
-      'This is a test notification to verify the notification bell is working correctly.'
+      '🌿',
+      'notifications.wateringTitle',
+      'notifications.wateringMessage',
+      { plantName: 'Test Plant' }
     );
   }
 }

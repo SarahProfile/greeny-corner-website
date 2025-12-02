@@ -15,8 +15,12 @@ export default function MobileBottomNav() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState<Array<{
     id: string;
-    title: string;
-    message: string;
+    emoji?: string;
+    titleKey?: string;
+    messageKey?: string;
+    data?: any;
+    title?: string;
+    message?: string;
     timestamp: Date;
     read: boolean;
   }>>([]);
@@ -152,9 +156,16 @@ export default function MobileBottomNav() {
                       </div>
                       <div className="ml-3 flex-1">
                         <p className={`text-sm ${!notification.read ? 'font-semibold' : 'font-normal'} text-gray-900`}>
-                          {notification.title}
+                          {notification.emoji && ' '}{notification.emoji}
+                          {notification.titleKey && notification.data
+                            ? t(notification.titleKey, notification.data)
+                            : notification.title}
                         </p>
-                        <p className="text-sm text-gray-600 mt-1">{notification.message}</p>
+                        <p className="text-sm text-gray-600 mt-1">
+                          {notification.messageKey && notification.data
+                            ? t(notification.messageKey, notification.data)
+                            : notification.message}
+                        </p>
                         <p className="text-xs text-gray-400 mt-1">
                           {new Date(notification.timestamp).toLocaleString()}
                         </p>
