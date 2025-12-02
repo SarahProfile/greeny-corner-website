@@ -24,7 +24,7 @@ export default function MobileBottomNav() {
   const handleNotificationToggle = async () => {
     if (!notificationsEnabled) {
       const permission = await notificationService.requestPermission();
-      if (permission === 'granted') {
+      if (permission) {
         setNotificationsEnabled(true);
       }
     } else {
