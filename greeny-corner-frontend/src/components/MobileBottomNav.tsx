@@ -100,7 +100,7 @@ export default function MobileBottomNav() {
           setNotifications(migrated);
 
           // Save migrated notifications back to localStorage
-          localStorage.setItem('notification_history', JSON.stringify(migrated.map(n => ({
+          localStorage.setItem('notification_history', JSON.stringify(migrated.map((n: any) => ({
             ...n,
             timestamp: n.timestamp.toISOString()
           }))));
