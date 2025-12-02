@@ -90,11 +90,36 @@ export default function MobileBottomNav() {
               emoji = '🚨';
               titleKey = 'plants.overdueTitle';
               messageKey = 'plants.overdueMessage';
-              // Extract plant name and other data if possible
-              const messageMatch = n.message?.match(/Your (.+) is (\d+) day/);
+              // Extract plant name, action, days, and careType
+              const titleMatch = n.title?.match(/🚨 (.+) needs (.+)!/);
+              const messageMatch = n.message?.match(/Your (.+) is (\d+) day\(s\) overdue for (.+)\./);
+
+              if (titleMatch) {
+                plantName = titleMatch[1];
+              }
+
+              let action = 'care';
+              let days = '0';
+              let careType = 'care';
+
+              if (titleMatch && titleMatch[2]) {
+                action = titleMatch[2]; // e.g., "water", "fertilize"
+              }
+
               if (messageMatch) {
                 plantName = messageMatch[1];
+                days = messageMatch[2];
+                careType = messageMatch[3]; // e.g., "watering", "fertilizing"
               }
+
+              return {
+                ...n,
+                emoji,
+                titleKey,
+                messageKey,
+                data: { plantName, action, days, careType },
+                timestamp: new Date(n.timestamp)
+              };
             }
 
             return {
