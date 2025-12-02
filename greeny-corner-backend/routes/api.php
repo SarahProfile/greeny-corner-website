@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\API\AuthController;
 use App\Http\Controllers\API\FirebaseAuthController;
+use App\Http\Controllers\API\HelpMessageController;
 use App\Http\Controllers\API\MobileAuthController;
 use App\Http\Controllers\API\PlantController;
 use Illuminate\Http\Request;
@@ -61,4 +62,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('plants/identify-gemini', [PlantController::class, 'identifyWithGemini']);
     Route::put('plants/{id}/refresh-gemini', [PlantController::class, 'refreshGeminiData']);
     Route::get('plants/{id}/diseases-nutrition', [PlantController::class, 'getDiseasesAndNutrition']);
+
+    // Help Messages
+    Route::post('help-messages', [HelpMessageController::class, 'store']);
+    Route::get('help-messages', [HelpMessageController::class, 'index']);
 });

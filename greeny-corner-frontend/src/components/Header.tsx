@@ -38,10 +38,10 @@ export default function Header({ showUserInfo = true }: HeaderProps) {
             <LanguageSwitcher />
             {showUserInfo && user && (
               <>
-                <span className="text-gray-700">{t('header.welcomeUser', { name: user.name })}</span>
+                <span className="hidden md:block text-gray-700">{t('header.welcomeUser', { name: user.name })}</span>
                 <button
                   onClick={handleLogout}
-                  className="text-gray-500 hover:text-gray-700 font-medium"
+                  className="hidden md:block text-gray-500 hover:text-gray-700 font-medium"
                 >
                   {t('auth.signOut')}
                 </button>

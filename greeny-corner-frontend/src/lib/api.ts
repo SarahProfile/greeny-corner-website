@@ -226,4 +226,16 @@ export const plantsAPI = {
   },
 };
 
+export const helpMessageAPI = {
+  submitMessage: async (data: { category: string; message: string }) => {
+    const response = await api.post('/help-messages', data);
+    return response.data;
+  },
+
+  getMessages: async () => {
+    const response = await api.get('/help-messages');
+    return response.data;
+  },
+};
+
 export default api;
