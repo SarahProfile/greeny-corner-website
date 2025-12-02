@@ -70,7 +70,9 @@ const resources = {
         "appLogoAlt": "Greeny Corner Logo",
         "tagline": "Track, Care & Grow Your Plants",
         "day": "day",
-        "daysPlural": "days"
+        "daysPlural": "days",
+        "send": "Send",
+        "sending": "Sending..."
       },
       "header": {
         "welcomeUser": "Welcome, {{name}}"
@@ -298,32 +300,6 @@ const resources = {
         "other": "Other",
         "yourMessage": "Your Message",
         "messagePlaceholder": "Tell us how we can help..."
-      },
-      "common": {
-        "loading": "Loading...",
-        "error": "Error",
-        "success": "Success",
-        "cancel": "Cancel",
-        "save": "Save",
-        "delete": "Delete",
-        "edit": "Edit",
-        "close": "Close",
-        "back": "Back",
-        "next": "Next",
-        "previous": "Previous",
-        "search": "Search",
-        "filter": "Filter",
-        "sort": "Sort",
-        "language": "Language",
-        "english": "English",
-        "arabic": "العربية",
-        "updating": "Updating...",
-        "appLogoAlt": "Greeny Corner Logo",
-        "tagline": "Track, Care & Grow Your Plants",
-        "day": "day",
-        "daysPlural": "days",
-        "send": "Send",
-        "sending": "Sending..."
       }
     }
   },
@@ -394,7 +370,9 @@ const resources = {
         "appLogoAlt": "شعار جريني كورنر",
         "tagline": "تتبع، اعتنِ وأنمِ نباتاتك",
         "day": "يوم",
-        "daysPlural": "أيام"
+        "daysPlural": "أيام",
+        "send": "إرسال",
+        "sending": "جار الإرسال..."
       },
       "header": {
         "welcomeUser": "أهلاً، {{name}}"
@@ -642,32 +620,6 @@ const resources = {
         "other": "أخرى",
         "yourMessage": "رسالتك",
         "messagePlaceholder": "أخبرنا كيف يمكننا مساعدتك..."
-      },
-      "common": {
-        "loading": "جار التحميل...",
-        "error": "خطأ",
-        "success": "نجح",
-        "cancel": "إلغاء",
-        "save": "حفظ",
-        "delete": "حذف",
-        "edit": "تعديل",
-        "close": "إغلاق",
-        "back": "رجوع",
-        "next": "التالي",
-        "previous": "السابق",
-        "search": "بحث",
-        "filter": "تصفية",
-        "sort": "ترتيب",
-        "language": "اللغة",
-        "english": "English",
-        "arabic": "العربية",
-        "updating": "جار التحديث...",
-        "appLogoAlt": "شعار جريني كورنر",
-        "tagline": "تتبع، اعتنِ وأنمِ نباتاتك",
-        "day": "يوم",
-        "daysPlural": "أيام",
-        "send": "إرسال",
-        "sending": "جار الإرسال..."
       }
     }
   }
