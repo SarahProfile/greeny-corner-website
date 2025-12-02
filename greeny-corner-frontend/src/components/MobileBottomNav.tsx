@@ -36,10 +36,20 @@ export default function MobileBottomNav() {
 
           // Migrate old notifications to new format
           const migrated = parsed.map((n: any) => {
-            // If it's already in new format, return as-is
-            if (n.titleKey && n.messageKey) {
+            // If it's already in new format with correct keys, return as-is
+            if (n.titleKey && n.messageKey && n.titleKey.startsWith('plants.')) {
               return {
                 ...n,
+                timestamp: new Date(n.timestamp)
+              };
+            }
+
+            // If it has old notification.* keys, need to re-migrate
+            if (n.titleKey && n.titleKey.startsWith('notifications.')) {
+              return {
+                ...n,
+                titleKey: n.titleKey.replace('notifications.', 'plants.'),
+                messageKey: n.messageKey.replace('notifications.', 'plants.'),
                 timestamp: new Date(n.timestamp)
               };
             }
