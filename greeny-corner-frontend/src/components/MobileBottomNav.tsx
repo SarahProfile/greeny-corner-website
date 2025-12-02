@@ -296,12 +296,36 @@ export default function MobileBottomNav() {
                         <p className={`text-sm ${!notification.read ? 'font-semibold' : 'font-normal'} text-gray-900`}>
                           {notification.emoji}{' '}
                           {notification.titleKey && notification.data
-                            ? String(t(notification.titleKey, notification.data))
+                            ? (() => {
+                                // For overdue notifications, ensure all required data is present
+                                if (notification.titleKey === 'plants.overdueTitle') {
+                                  const completeData = {
+                                    plantName: notification.data.plantName || 'Plant',
+                                    action: notification.data.action || 'care',
+                                    days: notification.data.days || '0',
+                                    careType: notification.data.careType || 'watering'
+                                  };
+                                  return String(t(notification.titleKey, completeData));
+                                }
+                                return String(t(notification.titleKey, notification.data));
+                              })()
                             : notification.title}
                         </p>
                         <p className="text-sm text-gray-600 mt-1">
                           {notification.messageKey && notification.data
-                            ? String(t(notification.messageKey, notification.data))
+                            ? (() => {
+                                // For overdue notifications, ensure all required data is present
+                                if (notification.messageKey === 'plants.overdueMessage') {
+                                  const completeData = {
+                                    plantName: notification.data.plantName || 'Plant',
+                                    action: notification.data.action || 'care',
+                                    days: notification.data.days || '0',
+                                    careType: notification.data.careType || 'watering'
+                                  };
+                                  return String(t(notification.messageKey, completeData));
+                                }
+                                return String(t(notification.messageKey, notification.data));
+                              })()
                             : notification.message}
                         </p>
                         <p className="text-xs text-gray-400 mt-1">
