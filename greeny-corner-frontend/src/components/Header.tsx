@@ -367,10 +367,25 @@ export default function Header({ showUserInfo = true }: HeaderProps) {
                                               'tilling': 'plants.careTypeTilling'
                                             };
 
+                                            // Calculate actual days if we have a timestamp
+                                            let daysOverdue = notification.data.days || '0';
+                                            if (notification.timestamp) {
+                                              const notifDate = new Date(notification.timestamp);
+                                              const now = new Date();
+                                              const daysSinceNotif = Math.floor((now.getTime() - notifDate.getTime()) / (24 * 60 * 60 * 1000));
+                                              // If notification says 0 days but it's been more than a day since the notification, recalculate
+                                              if (daysOverdue === '0' && daysSinceNotif > 0) {
+                                                daysOverdue = String(daysSinceNotif);
+                                              } else if (daysOverdue !== '0') {
+                                                // Add days that have passed since notification was created
+                                                daysOverdue = String(parseInt(daysOverdue) + daysSinceNotif);
+                                              }
+                                            }
+
                                             const completeData = {
                                               plantName: notification.data.plantName || 'Plant',
                                               action: String(t(actionKeyMap[rawAction] || 'plants.actionCare')),
-                                              days: notification.data.days || '0',
+                                              days: daysOverdue,
                                               careType: String(t(careTypeKeyMap[rawCareType] || 'plants.careTypeWatering'))
                                             };
                                             return String(t(notification.titleKey, completeData));
@@ -402,10 +417,25 @@ export default function Header({ showUserInfo = true }: HeaderProps) {
                                               'tilling': 'plants.careTypeTilling'
                                             };
 
+                                            // Calculate actual days if we have a timestamp
+                                            let daysOverdue = notification.data.days || '0';
+                                            if (notification.timestamp) {
+                                              const notifDate = new Date(notification.timestamp);
+                                              const now = new Date();
+                                              const daysSinceNotif = Math.floor((now.getTime() - notifDate.getTime()) / (24 * 60 * 60 * 1000));
+                                              // If notification says 0 days but it's been more than a day since the notification, recalculate
+                                              if (daysOverdue === '0' && daysSinceNotif > 0) {
+                                                daysOverdue = String(daysSinceNotif);
+                                              } else if (daysOverdue !== '0') {
+                                                // Add days that have passed since notification was created
+                                                daysOverdue = String(parseInt(daysOverdue) + daysSinceNotif);
+                                              }
+                                            }
+
                                             const completeData = {
                                               plantName: notification.data.plantName || 'Plant',
                                               action: String(t(actionKeyMap[rawAction] || 'plants.actionCare')),
-                                              days: notification.data.days || '0',
+                                              days: daysOverdue,
                                               careType: String(t(careTypeKeyMap[rawCareType] || 'plants.careTypeWatering'))
                                             };
                                             return String(t(notification.messageKey, completeData));
