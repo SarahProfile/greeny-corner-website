@@ -398,13 +398,17 @@ export default function MobileBottomNav() {
                                     }
                                   }
 
+                                  // If days seem wrong (0 but no dueDate), use message without days
+                                  const useNoDaysMessage = daysOverdue === '0' && !notification.data.dueDate;
+                                  const messageKey = useNoDaysMessage ? 'plants.overdueMessageNoDays' : notification.messageKey;
+
                                   const completeData = {
                                     plantName: notification.data.plantName || 'Plant',
                                     action: String(t(actionKeyMap[rawAction] || 'plants.actionCare')),
                                     days: daysOverdue,
                                     careType: String(t(careTypeKeyMap[rawCareType] || 'plants.careTypeWatering'))
                                   };
-                                  return String(t(notification.messageKey, completeData));
+                                  return String(t(messageKey, completeData));
                                 }
                                 return String(t(notification.messageKey, notification.data));
                               })()
