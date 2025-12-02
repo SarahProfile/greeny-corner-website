@@ -233,7 +233,7 @@ export default function Header({ showUserInfo = true }: HeaderProps) {
     localStorage.setItem('notification_history', JSON.stringify(updated));
   };
 
-  const handleNotificationClick = (notification: any) => {
+  const handleNotificationItemClick = (notification: any) => {
     // Mark as read
     markAsRead(notification.id);
 
@@ -340,7 +340,7 @@ export default function Header({ showUserInfo = true }: HeaderProps) {
                           notifications.map((notification) => (
                             <div
                               key={notification.id}
-                              onClick={() => handleNotificationClick(notification)}
+                              onClick={() => handleNotificationItemClick(notification)}
                               className={`px-4 py-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors ${
                                 !notification.read ? 'bg-blue-50' : ''
                               }`}
