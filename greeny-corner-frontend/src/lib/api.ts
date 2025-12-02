@@ -148,10 +148,10 @@ export const plantsAPI = {
   addPlant: async (image: File, language?: string) => {
     const formData = new FormData();
     formData.append('image', image);
-    
+
     // Add language preference from i18n or localStorage
-    const currentLanguage = language || 
-                           (typeof window !== 'undefined' ? localStorage.getItem('language') : null) || 
+    const currentLanguage = language ||
+                           (typeof window !== 'undefined' ? localStorage.getItem('i18nextLng') : null) ||
                            'en';
     formData.append('language', currentLanguage);
     
