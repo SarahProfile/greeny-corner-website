@@ -317,9 +317,17 @@ export default function MobileBottomNav() {
                                     'tilling': 'plants.careTypeTilling'
                                   };
 
-                                  // Calculate actual days if we have a timestamp
+                                  // Calculate actual days - prefer dueDate if available, otherwise use timestamp-based calculation
                                   let daysOverdue = notification.data.days || '0';
-                                  if (notification.timestamp) {
+
+                                  if (notification.data.dueDate) {
+                                    // If we have the original due date, calculate actual overdue days
+                                    const dueDate = new Date(notification.data.dueDate);
+                                    const now = new Date();
+                                    const actualDaysOverdue = Math.floor((now.getTime() - dueDate.getTime()) / (24 * 60 * 60 * 1000));
+                                    daysOverdue = String(Math.max(0, actualDaysOverdue)); // Don't show negative
+                                  } else if (notification.timestamp) {
+                                    // Fallback: estimate based on notification timestamp
                                     const notifDate = new Date(notification.timestamp);
                                     const now = new Date();
                                     const daysSinceNotif = Math.floor((now.getTime() - notifDate.getTime()) / (24 * 60 * 60 * 1000));
@@ -367,9 +375,17 @@ export default function MobileBottomNav() {
                                     'tilling': 'plants.careTypeTilling'
                                   };
 
-                                  // Calculate actual days if we have a timestamp
+                                  // Calculate actual days - prefer dueDate if available, otherwise use timestamp-based calculation
                                   let daysOverdue = notification.data.days || '0';
-                                  if (notification.timestamp) {
+
+                                  if (notification.data.dueDate) {
+                                    // If we have the original due date, calculate actual overdue days
+                                    const dueDate = new Date(notification.data.dueDate);
+                                    const now = new Date();
+                                    const actualDaysOverdue = Math.floor((now.getTime() - dueDate.getTime()) / (24 * 60 * 60 * 1000));
+                                    daysOverdue = String(Math.max(0, actualDaysOverdue)); // Don't show negative
+                                  } else if (notification.timestamp) {
+                                    // Fallback: estimate based on notification timestamp
                                     const notifDate = new Date(notification.timestamp);
                                     const now = new Date();
                                     const daysSinceNotif = Math.floor((now.getTime() - notifDate.getTime()) / (24 * 60 * 60 * 1000));

@@ -244,12 +244,14 @@ export class NotificationService {
       const title = `🚨 ${plant.name} needs ${action}!`;
       const body = `Your ${plant.name} is ${daysPast} day(s) overdue for ${careType}.`;
 
-      // Save to notification history with translation keys
+      // Save to notification history with translation keys and due date for recalculation
       this.saveNotificationToHistory('🚨', 'plants.overdueTitle', 'plants.overdueMessage', {
         plantName: plant.name,
         action,
         days: daysPast,
-        careType
+        careType,
+        plantId: plant.id,
+        dueDate: careDate.toISOString() // Store the original due date
       });
 
       if (this.canSendNotifications()) {
