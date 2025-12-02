@@ -148,6 +148,11 @@ export default function Header({ showUserInfo = true }: HeaderProps) {
                   Test
                 </button>
 
+                {/* Debug info */}
+                <div className="hidden md:block text-xs text-gray-500">
+                  {notifications.length} notifs | {showNotifications ? 'OPEN' : 'CLOSED'}
+                </div>
+
                 {/* Notification Bell - Desktop Only */}
                 <div className="hidden md:block relative" ref={dropdownRef}>
                   <button
