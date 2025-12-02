@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { Plant, plantsAPI } from '@/lib/api';
 import { notificationService } from '@/lib/notifications';
 import Header from '@/components/Header';
+import MobileBottomNav from '@/components/MobileBottomNav';
 import { useTranslation } from 'react-i18next';
 
 export default function MyPlantsPage() {
@@ -571,6 +572,8 @@ export default function MyPlantsPage() {
           overflow: hidden;
         }
       `}</style>
+
+      <MobileBottomNav />
     </div>
   );
 }

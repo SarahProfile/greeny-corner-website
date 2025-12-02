@@ -74,14 +74,19 @@ export class NotificationService {
     title: string;
     body: string;
   }): Promise<void> {
+    const notificationTitle = `${config.emoji} ${config.title}`;
+    const notificationBody = config.body;
+
+    // Save to notification history in localStorage
+    this.saveNotificationToHistory(notificationTitle, notificationBody);
+
     if (!this.canSendNotifications()) {
-      console.warn('Cannot send notification - permission not granted');
+      console.warn('Cannot send notification - permission not granted, but saved to history');
       return;
     }
 
-    const notificationTitle = `${config.emoji} ${config.title}`;
     const notificationOptions = {
-      body: config.body,
+      body: notificationBody,
       icon: '/favicon-greeny.svg',
       badge: '/favicon-greeny.svg',
       tag: `${careType}-${plantId}`, // Prevents duplicate notifications
@@ -180,9 +185,15 @@ export class NotificationService {
       };
 
       setTimeout(() => {
+        const title = `${emojiMap[careType as keyof typeof emojiMap]} ${plantName} ${careType} reminder`;
+        const body = `Your ${plantName} will need ${careType} in 1 hour.`;
+
+        // Save to notification history
+        this.saveNotificationToHistory(title, body);
+
         if (this.canSendNotifications()) {
-          new Notification(`${emojiMap[careType as keyof typeof emojiMap]} ${plantName} ${careType} reminder`, {
-            body: `Your ${plantName} will need ${careType} in 1 hour.`,
+          new Notification(title, {
+            body,
             icon: '/favicon-greeny.svg',
             tag: `pre-${careType}-${plantId}`
           });
@@ -217,10 +228,15 @@ export class NotificationService {
   private checkOverdueCare(plant: any, careType: string, careDate: Date, now: Date, emoji: string, action: string): void {
     if (careDate < now) {
       const daysPast = Math.floor((now.getTime() - careDate.getTime()) / (24 * 60 * 60 * 1000));
-      
+      const title = `🚨 ${plant.name} needs ${action}!`;
+      const body = `Your ${plant.name} is ${daysPast} day(s) overdue for ${careType}.`;
+
+      // Save to notification history
+      this.saveNotificationToHistory(title, body);
+
       if (this.canSendNotifications()) {
-        new Notification(`🚨 ${plant.name} needs ${action}!`, {
-          body: `Your ${plant.name} is ${daysPast} day(s) overdue for ${careType}.`,
+        new Notification(title, {
+          body,
           icon: '/favicon-greeny.svg',
           tag: `overdue-${careType}-${plant.id}`,
           requireInteraction: true
@@ -261,6 +277,45 @@ export class NotificationService {
   getNotificationsEnabled(): boolean {
     const stored = localStorage.getItem('notifications_enabled');
     return stored !== null ? stored === 'true' : true; // Default to enabled
+  }
+
+  // Save notification to history in localStorage
+  private saveNotificationToHistory(title: string, message: string): void {
+    if (typeof window === 'undefined') return;
+
+    try {
+      // Get existing notifications
+      const existingNotifications = localStorage.getItem('notification_history');
+      const notifications = existingNotifications ? JSON.parse(existingNotifications) : [];
+
+      // Create new notification object
+      const newNotification = {
+        id: `notif-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        title,
+        message,
+        timestamp: new Date().toISOString(),
+        read: false
+      };
+
+      // Add to beginning of array (newest first)
+      notifications.unshift(newNotification);
+
+      // Keep only the last 50 notifications
+      const trimmedNotifications = notifications.slice(0, 50);
+
+      // Save back to localStorage
+      localStorage.setItem('notification_history', JSON.stringify(trimmedNotifications));
+    } catch (error) {
+      console.error('Failed to save notification to history:', error);
+    }
+  }
+
+  // Public method to send a test notification (for testing purposes)
+  sendTestNotification(): void {
+    this.saveNotificationToHistory(
+      '🌿 Test Notification',
+      'This is a test notification to verify the notification bell is working correctly.'
+    );
   }
 }
 

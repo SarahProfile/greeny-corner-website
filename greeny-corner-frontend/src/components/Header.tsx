@@ -72,6 +72,23 @@ export default function Header({ showUserInfo = true }: HeaderProps) {
     setShowNotifications(!showNotifications);
   };
 
+  const handleTestNotification = () => {
+    notificationService.sendTestNotification();
+    // Reload notifications immediately
+    const storedNotifications = localStorage.getItem('notification_history');
+    if (storedNotifications) {
+      try {
+        const parsed = JSON.parse(storedNotifications);
+        setNotifications(parsed.map((n: any) => ({
+          ...n,
+          timestamp: new Date(n.timestamp)
+        })));
+      } catch (e) {
+        console.error('Failed to parse notifications:', e);
+      }
+    }
+  };
+
   const markAsRead = (id: string) => {
     const updated = notifications.map(n =>
       n.id === id ? { ...n, read: true } : n
@@ -105,6 +122,15 @@ export default function Header({ showUserInfo = true }: HeaderProps) {
             <LanguageSwitcher />
             {showUserInfo && user && (
               <>
+                {/* Test Notification Button - Remove after testing */}
+                <button
+                  onClick={handleTestNotification}
+                  className="hidden md:block px-3 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600"
+                  title="Send test notification"
+                >
+                  Test
+                </button>
+
                 {/* Notification Bell - Desktop Only */}
                 <div className="hidden md:block relative" ref={dropdownRef}>
                   <button

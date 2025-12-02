@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { Plant, plantsAPI } from '@/lib/api';
 import { notificationService } from '@/lib/notifications';
 import Header from '@/components/Header';
+import MobileBottomNav from '@/components/MobileBottomNav';
 import { useTranslation } from 'react-i18next';
 import { translatePlantValue } from '@/lib/plantTranslations';
 
@@ -954,6 +955,8 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
           </div>
         </div>
       )}
+
+      <MobileBottomNav />
     </div>
   );
 }
