@@ -33,10 +33,77 @@ export default function MobileBottomNav() {
       if (storedNotifications) {
         try {
           const parsed = JSON.parse(storedNotifications);
-          setNotifications(parsed.map((n: any) => ({
+
+          // Migrate old notifications to new format
+          const migrated = parsed.map((n: any) => {
+            // If it's already in new format, return as-is
+            if (n.titleKey && n.messageKey) {
+              return {
+                ...n,
+                timestamp: new Date(n.timestamp)
+              };
+            }
+
+            // Migrate old format to new format
+            // Extract plant name from old English messages
+            let plantName = 'Plant';
+            let titleKey = '';
+            let messageKey = '';
+            let emoji = '🌿';
+
+            // Parse watering notifications
+            if (n.title?.includes('Time to water') || n.title?.includes('💧')) {
+              emoji = '💧';
+              titleKey = 'notifications.wateringTitle';
+              messageKey = 'notifications.wateringMessage';
+              const match = n.title?.match(/Time to water (.+)!/);
+              if (match) plantName = match[1];
+            }
+            // Parse fertilizing notifications
+            else if (n.title?.includes('Time to fertilize') || n.title?.includes('🌱')) {
+              emoji = '🌱';
+              titleKey = 'notifications.fertilizingTitle';
+              messageKey = 'notifications.fertilizingMessage';
+              const match = n.title?.match(/Time to fertilize (.+)!/);
+              if (match) plantName = match[1];
+            }
+            // Parse tilling notifications
+            else if (n.title?.includes('Time to till') || n.title?.includes('🪴')) {
+              emoji = '🪴';
+              titleKey = 'notifications.tillingTitle';
+              messageKey = 'notifications.tillingMessage';
+              const match = n.title?.match(/Time to till (.+)!/);
+              if (match) plantName = match[1];
+            }
+            // Parse overdue notifications
+            else if (n.title?.includes('needs')) {
+              emoji = '🚨';
+              titleKey = 'notifications.overdueTitle';
+              messageKey = 'notifications.overdueMessage';
+              // Extract plant name and other data if possible
+              const messageMatch = n.message?.match(/Your (.+) is (\d+) day/);
+              if (messageMatch) {
+                plantName = messageMatch[1];
+              }
+            }
+
+            return {
+              ...n,
+              emoji,
+              titleKey,
+              messageKey,
+              data: { plantName },
+              timestamp: new Date(n.timestamp)
+            };
+          });
+
+          setNotifications(migrated);
+
+          // Save migrated notifications back to localStorage
+          localStorage.setItem('notification_history', JSON.stringify(migrated.map(n => ({
             ...n,
-            timestamp: new Date(n.timestamp)
-          })));
+            timestamp: n.timestamp.toISOString()
+          }))));
         } catch (e) {
           console.error('Failed to parse notifications:', e);
         }
