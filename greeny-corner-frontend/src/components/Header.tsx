@@ -61,32 +61,32 @@ export default function Header({ showUserInfo = true }: HeaderProps) {
             // Parse watering notifications
             if (n.title?.includes('Time to water') || n.title?.includes('💧')) {
               emoji = '💧';
-              titleKey = 'notifications.wateringTitle';
-              messageKey = 'notifications.wateringMessage';
+              titleKey = 'plants.wateringTitle';
+              messageKey = 'plants.wateringMessage';
               const match = n.title?.match(/Time to water (.+)!/);
               if (match) plantName = match[1];
             }
             // Parse fertilizing notifications
             else if (n.title?.includes('Time to fertilize') || n.title?.includes('🌱')) {
               emoji = '🌱';
-              titleKey = 'notifications.fertilizingTitle';
-              messageKey = 'notifications.fertilizingMessage';
+              titleKey = 'plants.fertilizingTitle';
+              messageKey = 'plants.fertilizingMessage';
               const match = n.title?.match(/Time to fertilize (.+)!/);
               if (match) plantName = match[1];
             }
             // Parse tilling notifications
             else if (n.title?.includes('Time to till') || n.title?.includes('🪴')) {
               emoji = '🪴';
-              titleKey = 'notifications.tillingTitle';
-              messageKey = 'notifications.tillingMessage';
+              titleKey = 'plants.tillingTitle';
+              messageKey = 'plants.tillingMessage';
               const match = n.title?.match(/Time to till (.+)!/);
               if (match) plantName = match[1];
             }
             // Parse overdue notifications
             else if (n.title?.includes('needs')) {
               emoji = '🚨';
-              titleKey = 'notifications.overdueTitle';
-              messageKey = 'notifications.overdueMessage';
+              titleKey = 'plants.overdueTitle';
+              messageKey = 'plants.overdueMessage';
               // Extract plant name and other data if possible
               const messageMatch = n.message?.match(/Your (.+) is (\d+) day/);
               if (messageMatch) {

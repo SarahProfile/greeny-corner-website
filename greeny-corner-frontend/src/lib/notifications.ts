@@ -48,24 +48,24 @@ export class NotificationService {
   sendWateringReminder(plantName: string, plantId: number): void {
     this.sendCareReminder('watering', plantName, plantId, {
       emoji: '💧',
-      titleKey: 'notifications.wateringTitle',
-      bodyKey: 'notifications.wateringMessage'
+      titleKey: 'plants.wateringTitle',
+      bodyKey: 'plants.wateringMessage'
     }).catch(console.error);
   }
 
   sendFertilizingReminder(plantName: string, plantId: number): void {
     this.sendCareReminder('fertilizing', plantName, plantId, {
       emoji: '🌱',
-      titleKey: 'notifications.fertilizingTitle',
-      bodyKey: 'notifications.fertilizingMessage'
+      titleKey: 'plants.fertilizingTitle',
+      bodyKey: 'plants.fertilizingMessage'
     }).catch(console.error);
   }
 
   sendTillingReminder(plantName: string, plantId: number): void {
     this.sendCareReminder('tilling', plantName, plantId, {
       emoji: '🪴',
-      titleKey: 'notifications.tillingTitle',
-      bodyKey: 'notifications.tillingMessage'
+      titleKey: 'plants.tillingTitle',
+      bodyKey: 'plants.tillingMessage'
     }).catch(console.error);
   }
 
@@ -84,14 +84,14 @@ export class NotificationService {
 
     // For browser notifications, use English as fallback (browser notifications don't support i18n)
     const englishTitles: Record<string, string> = {
-      'notifications.wateringTitle': `Time to water ${plantName}!`,
-      'notifications.fertilizingTitle': `Time to fertilize ${plantName}!`,
-      'notifications.tillingTitle': `Time to till ${plantName}!`
+      'plants.wateringTitle': `Time to water ${plantName}!`,
+      'plants.fertilizingTitle': `Time to fertilize ${plantName}!`,
+      'plants.tillingTitle': `Time to till ${plantName}!`
     };
     const englishBodies: Record<string, string> = {
-      'notifications.wateringMessage': `Your ${plantName} is ready for watering. Tap to view plant details.`,
-      'notifications.fertilizingMessage': `Your ${plantName} is ready for fertilizing. Give it some nutrients!`,
-      'notifications.tillingMessage': `Your ${plantName} needs soil tilling. Time to loosen the soil!`
+      'plants.wateringMessage': `Your ${plantName} is ready for watering. Tap to view plant details.`,
+      'plants.fertilizingMessage': `Your ${plantName} is ready for fertilizing. Give it some nutrients!`,
+      'plants.tillingMessage': `Your ${plantName} needs soil tilling. Time to loosen the soil!`
     };
 
     const notificationTitle = `${config.emoji} ${englishTitles[config.titleKey] || plantName}`;
@@ -202,7 +202,7 @@ export class NotificationService {
         const body = `Your ${plantName} will need ${careType} in 1 hour.`;
 
         // Save to notification history with translation keys
-        this.saveNotificationToHistory(emoji, 'notifications.preReminderTitle', 'notifications.preReminderMessage', { plantName, careType });
+        this.saveNotificationToHistory(emoji, 'plants.preReminderTitle', 'plants.preReminderMessage', { plantName, careType });
 
         if (this.canSendNotifications()) {
           new Notification(title, {
@@ -245,7 +245,7 @@ export class NotificationService {
       const body = `Your ${plant.name} is ${daysPast} day(s) overdue for ${careType}.`;
 
       // Save to notification history with translation keys
-      this.saveNotificationToHistory('🚨', 'notifications.overdueTitle', 'notifications.overdueMessage', {
+      this.saveNotificationToHistory('🚨', 'plants.overdueTitle', 'plants.overdueMessage', {
         plantName: plant.name,
         action,
         days: daysPast,
@@ -334,8 +334,8 @@ export class NotificationService {
   sendTestNotification(): void {
     this.saveNotificationToHistory(
       '🌿',
-      'notifications.wateringTitle',
-      'notifications.wateringMessage',
+      'plants.wateringTitle',
+      'plants.wateringMessage',
       { plantName: 'Test Plant' }
     );
   }
