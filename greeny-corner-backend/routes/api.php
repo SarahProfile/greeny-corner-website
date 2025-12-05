@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\API\AdminController;
 use App\Http\Controllers\API\AuthController;
 use App\Http\Controllers\API\FirebaseAuthController;
 use App\Http\Controllers\API\HelpMessageController;
@@ -66,4 +67,16 @@ Route::middleware('auth:sanctum')->group(function () {
     // Help Messages
     Route::post('help-messages', [HelpMessageController::class, 'store']);
     Route::get('help-messages', [HelpMessageController::class, 'index']);
+
+    // Admin Routes
+    Route::prefix('admin')->group(function () {
+        Route::get('dashboard/stats', [AdminController::class, 'getDashboardStats']);
+        Route::get('dashboard/user-growth', [AdminController::class, 'getUserGrowth']);
+        Route::get('dashboard/plant-additions', [AdminController::class, 'getPlantAdditions']);
+        Route::get('dashboard/popular-plants', [AdminController::class, 'getPopularPlants']);
+        Route::get('dashboard/message-categories', [AdminController::class, 'getMessageCategories']);
+        Route::get('users', [AdminController::class, 'getUsers']);
+        Route::get('messages', [AdminController::class, 'getHelpMessages']);
+        Route::put('messages/{id}/status', [AdminController::class, 'updateMessageStatus']);
+    });
 });

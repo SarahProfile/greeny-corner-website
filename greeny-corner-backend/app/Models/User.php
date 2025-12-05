@@ -29,6 +29,7 @@ class User extends Authenticatable
         'avatar',
         'password_reset_token',
         'password_reset_expires',
+        'is_admin',
     ];
 
     /**
@@ -53,6 +54,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'password_reset_expires' => 'datetime',
+            'is_admin' => 'boolean',
         ];
     }
 
