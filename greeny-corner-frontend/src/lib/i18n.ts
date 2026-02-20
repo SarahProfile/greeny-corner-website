@@ -78,7 +78,7 @@ const resources = {
         "welcomeUser": "Welcome, {{name}}"
       },
       "footer": {
-        "tagline": "Made with 🌿 for plant lovers everywhere"
+        "tagline": "© 2024 Greeny Corner. All rights reserved."
       },
       "navigation": {
         "home": "Home",
@@ -400,7 +400,7 @@ const resources = {
         "welcomeUser": "أهلاً، {{name}}"
       },
       "footer": {
-        "tagline": "صُنع بـ 🌿 لمحبي النباتات في كل مكان"
+        "tagline": "© 2024 Greeny Corner. جميع الحقوق محفوظة."
       },
       "navigation": {
         "home": "الرئيسية",
