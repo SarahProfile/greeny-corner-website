@@ -12,6 +12,7 @@ const resources = {
         "signInButton": "Sign in",
         "signUpButton": "Sign up",
         "signOut": "Sign out",
+        "browseAsGuest": "Browse as Guest",
         "alreadyHaveAccount": "Already have an account?",
         "dontHaveAccount": "Don't have an account?",
         "forgotPassword": "Forgot your password?",
@@ -78,7 +79,18 @@ const resources = {
         "welcomeUser": "Welcome, {{name}}"
       },
       "footer": {
-        "tagline": "© 2024 Greeny Corner. All rights reserved."
+        "tagline": "AI-powered plant care & identification. Track your plants and never miss a watering.",
+        "links": "Links",
+        "myPlants": "My Plants",
+        "signIn": "Sign In",
+        "createAccount": "Create Account",
+        "privacyPolicy": "Privacy Policy",
+        "getTheApp": "Get the App",
+        "downloadDesc": "Download Greeny Corner on your iPhone for the full plant care experience.",
+        "downloadOn": "Download on the",
+        "appStore": "App Store",
+        "allRightsReserved": "All rights reserved.",
+        "madeWith": "Made with 🌱 for plant lovers"
       },
       "navigation": {
         "home": "Home",
@@ -334,6 +346,7 @@ const resources = {
         "signInButton": "تسجيل دخول",
         "signUpButton": "إنشاء حساب",
         "signOut": "تسجيل خروج",
+        "browseAsGuest": "تصفح كضيف",
         "alreadyHaveAccount": "لديك حساب بالفعل؟",
         "dontHaveAccount": "ليس لديك حساب؟",
         "forgotPassword": "نسيت كلمة المرور؟",
@@ -400,7 +413,18 @@ const resources = {
         "welcomeUser": "أهلاً، {{name}}"
       },
       "footer": {
-        "tagline": "© 2024 Greeny Corner. جميع الحقوق محفوظة."
+        "tagline": "تطبيق ذكاء اصطناعي للتعرف على النباتات ورعايتها. تتبع نباتاتك ولا تنسَ الري أبدًا.",
+        "links": "روابط",
+        "myPlants": "نباتاتي",
+        "signIn": "تسجيل الدخول",
+        "createAccount": "إنشاء حساب",
+        "privacyPolicy": "سياسة الخصوصية",
+        "getTheApp": "حمّل التطبيق",
+        "downloadDesc": "حمّل جريني كورنر على iPhone للحصول على تجربة رعاية النباتات الكاملة.",
+        "downloadOn": "متوفر على",
+        "appStore": "App Store",
+        "allRightsReserved": "جميع الحقوق محفوظة.",
+        "madeWith": "صُنع بـ 🌱 لمحبي النباتات"
       },
       "navigation": {
         "home": "الرئيسية",
