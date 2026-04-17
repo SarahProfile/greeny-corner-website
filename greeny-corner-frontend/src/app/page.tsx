@@ -93,7 +93,7 @@ export default function Home() {
           <div className="mt-8 flex flex-col items-center">
             <p className="text-sm text-gray-500 mb-3">Also available on mobile</p>
             <a
-              href="https://apps.apple.com/app/id6740227597"
+              href="https://apps.apple.com/ae/app/greeny-corner/id6756967530"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 px-5 py-3 bg-black text-white text-xs rounded-xl hover:bg-gray-800 transition-colors shadow-lg"

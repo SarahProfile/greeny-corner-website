@@ -19,7 +19,7 @@ export default function LoginPage() {
   const { t } = useTranslation();
 
 
-  const IOS_APP_URL = 'https://apps.apple.com/app/id6740227597';
+  const IOS_APP_URL = 'https://apps.apple.com/ae/app/greeny-corner/id6756967530';
 
   const handleGuestAccess = () => {
     loginAsGuest();

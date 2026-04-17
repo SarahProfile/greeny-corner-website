@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useTranslation } from 'react-i18next';
 
-const IOS_APP_URL = 'https://apps.apple.com/app/id6740227597';
+const IOS_APP_URL = 'https://apps.apple.com/ae/app/greeny-corner/id6756967530';
 
 export default function Footer() {
   const { t } = useTranslation();
