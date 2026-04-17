@@ -6,6 +6,7 @@
     "signInButton": "تسجيل دخول",
     "signUpButton": "إنشاء حساب",
     "signOut": "تسجيل خروج",
+    "browseAsGuest": "تصفح كضيف",
     "alreadyHaveAccount": "لديك حساب بالفعل؟",
     "dontHaveAccount": "ليس لديك حساب؟",
     "forgotPassword": "نسيت كلمة المرور؟",
