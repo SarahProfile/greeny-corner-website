@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import ClientI18nProvider from "@/components/ClientI18nProvider";
 import GoogleAnalytics from "@/components/GoogleAnalytics";
+import Footer from "@/components/Footer";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -123,7 +124,10 @@ export default function RootLayout({
         <GoogleAnalytics />
         <ClientI18nProvider>
           <AuthProvider>
-            {children}
+            <div className="flex flex-col min-h-screen">
+              {children}
+              <Footer />
+            </div>
           </AuthProvider>
         </ClientI18nProvider>
       </body>

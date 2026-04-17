@@ -5,9 +5,12 @@ import { User, authAPI } from '@/lib/api';
 
 interface AuthContextType {
   user: User | null;
+  isGuest: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string, passwordConfirmation: string, phone?: string) => Promise<void>;
   logout: () => void;
+  loginAsGuest: () => void;
+  logoutGuest: () => void;
   loading: boolean;
   setAuthenticatedUser: (userData: User, token: string) => void;
 }
@@ -28,6 +31,7 @@ interface AuthProviderProps {
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [isGuest, setIsGuest] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -110,6 +114,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const loginAsGuest = () => {
+    setIsGuest(true);
+  };
+
+  const logoutGuest = () => {
+    setIsGuest(false);
+  };
+
   const logout = async () => {
     try {
       const token = localStorage.getItem('auth_token');
@@ -123,6 +135,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       localStorage.removeItem('auth_token');
       localStorage.removeItem('user');
       setUser(null);
+      setIsGuest(false);
     }
   };
 
@@ -143,9 +156,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const value = {
     user,
+    isGuest,
     login,
     register,
     logout,
+    loginAsGuest,
+    logoutGuest,
     loading,
     setAuthenticatedUser,
   };

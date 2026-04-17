@@ -14,7 +14,7 @@ export default function MyPlantsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const { user, logout, loading: authLoading } = useAuth();
+  const { user, logout, isGuest, logoutGuest, loading: authLoading } = useAuth();
   const router = useRouter();
   const { t } = useTranslation();
 
@@ -26,15 +26,20 @@ export default function MyPlantsPage() {
       return;
     }
 
-    if (!user) {
+    if (!user && !isGuest) {
       console.log('❌ MyPlants: No user found, redirecting to login');
       router.push('/login');
       return;
     }
 
+    if (isGuest) {
+      setLoading(false);
+      return;
+    }
+
     console.log('✅ MyPlants: User authenticated, fetching plants');
     fetchPlants();
-  }, [user, authLoading]);
+  }, [user, isGuest, authLoading]);
 
   useEffect(() => {
     const handleLanguageChange = (event: CustomEvent) => {
@@ -96,6 +101,37 @@ export default function MyPlantsPage() {
             <p className="mt-4 text-lg text-gray-600">{t('plants.loading')}</p>
           </div>
         </div>
+      </div>
+    );
+  }
+
+  if (isGuest) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-green-50">
+        <Header />
+        <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col items-center justify-center py-24 text-center">
+            <div className="text-7xl mb-6">🌿</div>
+            <h2 className="text-3xl font-bold text-gray-900 mb-3">Browsing as Guest</h2>
+            <p className="text-lg text-gray-600 mb-8 max-w-md">
+              Create an account to track your plants, set watering reminders, and never miss a care schedule.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <Link
+                href="/register"
+                className="inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-xl text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-lg transition-all duration-200"
+              >
+                Create Account
+              </Link>
+              <button
+                onClick={() => { logoutGuest(); router.push('/login'); }}
+                className="inline-flex items-center justify-center px-8 py-3 border border-gray-300 text-base font-medium rounded-xl text-gray-700 bg-white hover:bg-gray-50 transition-all duration-200"
+              >
+                Sign In
+              </button>
+            </div>
+          </div>
+        </main>
       </div>
     );
   }

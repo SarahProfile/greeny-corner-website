@@ -3,8 +3,11 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useAuth } from '@/contexts/AuthContext';
 import PhoneAuth from '@/components/PhoneAuth';
+
+const IOS_APP_URL = 'https://apps.apple.com/app/id6740227597';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -13,8 +16,13 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const { login } = useAuth();
+  const { login, loginAsGuest } = useAuth();
   const router = useRouter();
+
+  const handleGuestAccess = () => {
+    loginAsGuest();
+    router.push('/my-plants');
+  };
 
   const handleAuthMethodChange = (method: 'email' | 'phone') => {
     setAuthMethod(method);
@@ -161,6 +169,46 @@ export default function LoginPage() {
             </div>
           </form>
         )}
+
+        {/* Divider */}
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-200" />
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="px-2 bg-white text-gray-500">or</span>
+          </div>
+        </div>
+
+        {/* Continue as Guest */}
+        <button
+          type="button"
+          onClick={handleGuestAccess}
+          className="w-full flex justify-center py-2 px-4 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+        >
+          Browse as Guest
+        </button>
+
+        {/* App Store Download */}
+        <div className="pt-2 border-t border-gray-100 text-center">
+          <p className="text-xs text-gray-500 mb-3">Get the full experience on your phone</p>
+          <div className="flex justify-center gap-3">
+            <a
+              href={IOS_APP_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-black text-white text-xs rounded-lg hover:bg-gray-800 transition-colors"
+            >
+              <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white" xmlns="http://www.w3.org/2000/svg">
+                <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
+              </svg>
+              <span>
+                <span className="block text-[10px] leading-tight opacity-75">Download on the</span>
+                <span className="block text-sm font-semibold leading-tight">App Store</span>
+              </span>
+            </a>
+          </div>
+        </div>
       </div>
     </div>
   );
