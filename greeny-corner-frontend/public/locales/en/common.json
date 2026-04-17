@@ -124,5 +124,19 @@
     "title": "Greeny Corner",
     "subtitle": "Your Plant Care Assistant",
     "description": "Helping you grow a greener, healthier world, one plant at a time"
+  },
+  "footer": {
+    "tagline": "AI-powered plant care & identification. Track your plants and never miss a watering.",
+    "links": "Links",
+    "myPlants": "My Plants",
+    "signIn": "Sign In",
+    "createAccount": "Create Account",
+    "privacyPolicy": "Privacy Policy",
+    "getTheApp": "Get the App",
+    "downloadDesc": "Download Greeny Corner on your iPhone for the full plant care experience.",
+    "downloadOn": "Download on the",
+    "appStore": "App Store",
+    "allRightsReserved": "All rights reserved.",
+    "madeWith": "Made with 🌱 for plant lovers"
   }
 }
