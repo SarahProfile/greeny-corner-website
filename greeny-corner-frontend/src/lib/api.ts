@@ -229,6 +229,14 @@ export const plantsAPI = {
     return response.data;
   },
 
+  checkPlantHealth: async (id: number) => {
+    const language = (typeof window !== 'undefined'
+      ? (localStorage.getItem('i18nextLng') || localStorage.getItem('language'))
+      : null) || 'en';
+    const response = await api.post(`/plants/${id}/check-health`, { language });
+    return response.data;
+  },
+
   getDiseaseTreatment: async (disease: string, plantName: string) => {
     const language = (typeof window !== 'undefined'
       ? (localStorage.getItem('i18nextLng') || localStorage.getItem('language'))

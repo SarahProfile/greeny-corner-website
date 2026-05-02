@@ -8,15 +8,28 @@ import { Plant, plantsAPI } from '@/lib/api';
 import Header from '@/components/Header';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import { useTranslation } from 'react-i18next';
+import { translateText } from '@/lib/translateText';
 
 export default function MyPlantsPage() {
   const [plants, setPlants] = useState<Plant[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [translatedNames, setTranslatedNames] = useState<Record<number, string>>({});
+  const [wateringIds, setWateringIds] = useState<Set<number>>(new Set());
 
   const { user, logout, isGuest, logoutGuest, loading: authLoading } = useAuth();
   const router = useRouter();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+
+  const getLocalizedPlantName = (plant: Plant) => {
+    if (i18n.language === 'ar') {
+      return translatedNames[plant.id] || plant.api_data?.name_ar || plant.api_data?.arabic_name || plant.name;
+    }
+    // English: only use translated name if it's not Arabic (i.e. back-translated to English)
+    const translated = translatedNames[plant.id];
+    if (translated && !/[\u0600-\u06FF]/.test(translated)) return translated;
+    return plant.name;
+  };
 
   useEffect(() => {
     console.log('🔍 MyPlants: Auth check - authLoading:', authLoading, 'user:', user ? 'exists' : 'null');
@@ -56,15 +69,43 @@ export default function MyPlantsPage() {
       const data = await plantsAPI.getPlants();
       setPlants(data);
       setLoading(false);
+      translatePlantNames(data);
     } catch (err: any) {
       setError(err.response?.data?.message || t('plants.failedToLoad'));
       setLoading(false);
     }
   };
 
+  const translatePlantNames = async (plantList: Plant[]) => {
+    const isArabic = i18n.language === 'ar';
+    setTranslatedNames({});
+    const updates: Record<number, string> = {};
+    await Promise.all(
+      plantList.map(async (plant) => {
+        const hasArabicChars = /[\u0600-\u06FF]/.test(plant.name);
+        if (isArabic) {
+          const hasArName = plant.api_data?.name_ar || plant.api_data?.arabic_name;
+          if (!hasArName && !hasArabicChars) {
+            const translated = await translateText(plant.name, 'ar');
+            if (translated !== plant.name) updates[plant.id] = translated;
+          }
+        } else {
+          // English page: translate Arabic names back to English
+          if (hasArabicChars) {
+            const translated = await translateText(plant.name, 'en', 'ar');
+            if (translated !== plant.name) updates[plant.id] = translated;
+          }
+        }
+      })
+    );
+    if (Object.keys(updates).length > 0) {
+      setTranslatedNames((prev) => ({ ...prev, ...updates }));
+    }
+  };
+
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString();
+    const locale = i18n.language === 'ar' ? 'ar-AE' : 'en-AE';
+    return new Date(dateString).toLocaleDateString(locale);
   };
 
   const getNextWateringDate = (plant: Plant) => {
@@ -80,6 +121,21 @@ export default function MyPlantsPage() {
     const today = new Date();
     const diff = Math.ceil((next.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
     return diff;
+  };
+
+  const handleWater = async (e: React.MouseEvent, plantId: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (wateringIds.has(plantId)) return;
+    setWateringIds((prev) => new Set(prev).add(plantId));
+    try {
+      await plantsAPI.waterPlant(plantId);
+      await fetchPlants();
+    } catch {
+      setError(t('plants.failedToWater') || 'Failed to water plant');
+    } finally {
+      setWateringIds((prev) => { const s = new Set(prev); s.delete(plantId); return s; });
+    }
   };
 
   const getWateringStatus = (plant: Plant) => {
@@ -112,22 +168,22 @@ export default function MyPlantsPage() {
         <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col items-center justify-center py-24 text-center">
             <div className="text-7xl mb-6">🌿</div>
-            <h2 className="text-3xl font-bold text-gray-900 mb-3">Browsing as Guest</h2>
+            <h2 className="text-3xl font-bold text-gray-900 mb-3">{t('auth.browsingAsGuest')}</h2>
             <p className="text-lg text-gray-600 mb-8 max-w-md">
-              Create an account to track your plants, set watering reminders, and never miss a care schedule.
+              {t('plants.guestDescription')}
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
               <Link
                 href="/register"
                 className="inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-xl text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-lg transition-all duration-200"
               >
-                Create Account
+                {t('auth.signUp')}
               </Link>
               <button
                 onClick={() => { logoutGuest(); router.push('/login'); }}
                 className="inline-flex items-center justify-center px-8 py-3 border border-gray-300 text-base font-medium rounded-xl text-gray-700 bg-white hover:bg-gray-50 transition-all duration-200"
               >
-                Sign In
+                {t('auth.signInButton')}
               </button>
             </div>
           </div>
@@ -210,12 +266,12 @@ export default function MyPlantsPage() {
               const days = getDaysUntilWatering(plant);
 
               return (
-                <Link
+                <div
                   key={plant.id}
-                  href={`/my-plants/${plant.id}`}
                   className="group bg-white rounded-2xl shadow-md hover:shadow-2xl transition-all duration-300 overflow-hidden transform hover:-translate-y-2"
                 >
                   {/* Plant Image */}
+                  <Link href={`/my-plants/${plant.id}`}>
                   <div className="relative h-56 overflow-hidden bg-gradient-to-br from-emerald-100 to-teal-100">
                     <img
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
@@ -256,60 +312,74 @@ export default function MyPlantsPage() {
                       )}
                     </div>
                   </div>
+                  </Link>
 
-                  {/* Plant Info */}
+                  {/* Plant Info — link wraps only text, not the water button */}
                   <div className="p-5">
-                    <h3 className="text-xl font-bold text-gray-900 mb-2 line-clamp-1 group-hover:text-emerald-600 transition-colors">
-                      {plant.name}
-                    </h3>
+                    <Link href={`/my-plants/${plant.id}`}>
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-900 mb-2 line-clamp-1 group-hover:text-emerald-600 transition-colors">
+                        {getLocalizedPlantName(plant)}
+                      </h3>
 
-                    {plant.scientific_name && (
-                      <p className="text-sm text-gray-500 italic mb-3 line-clamp-1">
-                        {plant.scientific_name}
-                      </p>
-                    )}
+                      {plant.scientific_name && (
+                        <p className="text-sm text-gray-500 italic mb-3 line-clamp-1">
+                          {plant.scientific_name}
+                        </p>
+                      )}
 
-                    {/* Watering Info */}
-                    <div className="flex items-center text-sm text-gray-600 mb-2">
-                      <svg className="w-5 h-5 mr-2 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
-                      </svg>
-                      <span>
-                        {days !== null ? (
-                          days < 0 ? (
-                            <span className="text-red-600 font-semibold">
-                              {Math.abs(days)} {t('plants.daysOverdue')}
-                            </span>
-                          ) : days === 0 ? (
-                            <span className="text-orange-600 font-semibold">{t('plants.waterToday')}</span>
+                      {/* Watering Info */}
+                      <div className="flex items-center text-sm text-gray-600 mb-2">
+                        <svg className="w-5 h-5 mr-2 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                        </svg>
+                        <span>
+                          {days !== null ? (
+                            days < 0 ? (
+                              <span className="text-red-600 font-semibold">
+                                {Math.abs(days)} {t('plants.daysOverdue')}
+                              </span>
+                            ) : days === 0 ? (
+                              <span className="text-orange-600 font-semibold">{t('plants.waterToday')}</span>
+                            ) : (
+                              <span>{t('plants.in')} {days} {t('plants.days')}</span>
+                            )
                           ) : (
-                            <span>{t('plants.in')} {days} {t('plants.days')}</span>
-                          )
-                        ) : (
-                          <span className="text-gray-400">{t('plants.notSet')}</span>
-                        )}
-                      </span>
-                    </div>
+                            <span className="text-gray-400">{t('plants.notSet')}</span>
+                          )}
+                        </span>
+                      </div>
 
-                    {/* Added Date */}
-                    <div className="flex items-center text-xs text-gray-500">
-                      <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
-                      </svg>
-                      {t('plants.added')}: {formatDate(plant.added_at)}
+                      {/* Added Date */}
+                      <div className="flex items-center text-xs text-gray-500">
+                        <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+                        </svg>
+                        {t('plants.added')}: {formatDate(plant.added_at)}
+                      </div>
                     </div>
+                    </Link>
 
-                    {/* View Details Button */}
-                    <div className="mt-4 pt-4 border-t border-gray-100">
-                      <span className="text-emerald-600 font-medium group-hover:text-emerald-700 flex items-center">
+                    {/* Actions — outside Link so button clicks work */}
+                    <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between gap-2">
+                      <Link href={`/my-plants/${plant.id}`} className="text-emerald-600 font-medium hover:text-emerald-700 flex items-center text-sm">
                         {t('plants.viewDetails')}
                         <svg className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                         </svg>
-                      </span>
+                      </Link>
+                      {(status === 'overdue' || status === 'today') && (
+                        <button
+                          onClick={(e) => handleWater(e, plant.id)}
+                          disabled={wateringIds.has(plant.id)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white text-xs font-semibold rounded-full transition-colors shadow-sm"
+                        >
+                          💧 {wateringIds.has(plant.id) ? '…' : t('plants.water') || 'Water'}
+                        </button>
+                      )}
                     </div>
                   </div>
-                </Link>
+                </div>
               );
             })}
           </div>

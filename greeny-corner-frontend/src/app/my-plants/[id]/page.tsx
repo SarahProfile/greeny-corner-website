@@ -31,6 +31,7 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
   const [newWateringInterval, setNewWateringInterval] = useState(7);
   const [updatingSchedule, setUpdatingSchedule] = useState(false);
   const [updatingImage, setUpdatingImage] = useState(false);
+  const [checkingHealth, setCheckingHealth] = useState(false);
   const [treatmentData, setTreatmentData] = useState<any>(null);
   const [loadingTreatment, setLoadingTreatment] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -233,6 +234,20 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
     } finally {
       setUpdatingImage(false);
       if (imageInputRef.current) imageInputRef.current.value = '';
+    }
+  };
+
+  const handleCheckHealth = async () => {
+    if (!plant) return;
+    setCheckingHealth(true);
+    try {
+      const result = await plantsAPI.checkPlantHealth(plant.id);
+      if (result.success) setPlant(result.plant);
+      setTreatmentData(null);
+    } catch (err: any) {
+      setError(t('plantDetail.failedToUpdate'));
+    } finally {
+      setCheckingHealth(false);
     }
   };
 
@@ -508,101 +523,97 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
               </div>
             )}
 
-            {/* Health Status */}
-            {plant.health_status && (
-              <div className={`rounded-3xl shadow-xl p-6 border-2 ${getHealthStatusColor(plant.health_status)}`}>
-                <div className="flex items-start">
-                  <span className="text-4xl mr-4">{getHealthStatusIcon(plant.health_status)}</span>
-                  <div className="flex-1">
-                    <h3 className="text-xl font-bold mb-1">
-                      {t('plantDetail.plantHealth')}: {t(`plantDetail.${plant.health_status.replace('_', '')}`)}
+            {/* Plant Health */}
+            <div className={`rounded-3xl shadow-xl p-6 border-2 ${plant.health_status ? getHealthStatusColor(plant.health_status) : 'bg-white border-gray-200'}`}>
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <span className="text-4xl">{plant.health_status ? getHealthStatusIcon(plant.health_status) : '🔍'}</span>
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-900">
+                      {i18n.language === 'ar' ? 'صحة النبتة' : 'Plant Health'}
                     </h3>
-                    {plant.last_health_check && (
-                      <p className="text-sm opacity-75 mb-3">
-                        {t('plantDetail.lastChecked')} {formatDateTime(plant.last_health_check)}
+                    {plant.health_status ? (
+                      <p className="text-sm font-semibold mt-0.5">
+                        {i18n.language === 'ar'
+                          ? (plant.health_status === 'healthy' ? 'بصحة جيدة' : plant.health_status === 'sick' ? 'مريضة' : plant.health_status === 'needs_care' ? 'تحتاج عناية' : 'في خطر')
+                          : plant.health_status.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase())}
                       </p>
-                    )}
-                    {plant.health_notes && (
-                      <div className="mt-3 p-3 bg-white/50 rounded-xl">
-                        <p className="text-sm leading-relaxed">{plant.health_notes}</p>
-                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-500 mt-0.5">
+                        {i18n.language === 'ar' ? 'لم يتم فحص الصحة بعد' : 'Not checked yet'}
+                      </p>
                     )}
                   </div>
                 </div>
+                <button
+                  onClick={handleCheckHealth}
+                  disabled={checkingHealth}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-all shadow-md"
+                >
+                  {checkingHealth ? (
+                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  ) : '🔍'}
+                  {checkingHealth
+                    ? (i18n.language === 'ar' ? 'جاري الفحص...' : 'Checking...')
+                    : (plant.health_status ? (i18n.language === 'ar' ? 'إعادة الفحص' : 'Re-check') : (i18n.language === 'ar' ? 'فحص الآن' : 'Check Now'))}
+                </button>
               </div>
-            )}
 
-            {/* Treatment Tips */}
-            {plant.health_status && plant.health_status !== 'healthy' && (
-              <div className="bg-white rounded-3xl shadow-xl p-6 border border-orange-100">
-                <h3 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
-                  <span className="text-2xl">🩺</span>
-                  {i18n.language === 'ar' ? 'نصائح العلاج بالذكاء الاصطناعي' : 'AI Treatment Tips'}
-                </h3>
-                {!treatmentData ? (
-                  <button
-                    onClick={handleGetTreatment}
-                    disabled={loadingTreatment}
-                    className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold py-3 px-6 rounded-xl shadow-lg transition-all duration-300 transform hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-                  >
-                    {loadingTreatment ? (
-                      <span className="flex items-center justify-center gap-2">
-                        <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        {i18n.language === 'ar' ? 'جاري التحليل...' : 'Getting tips...'}
-                      </span>
-                    ) : (
-                      i18n.language === 'ar' ? '🤖 احصل على نصائح العلاج' : '🤖 Get Treatment Tips'
-                    )}
-                  </button>
-                ) : (
-                  <div className="space-y-3">
-                    {treatmentData.cause && (
-                      <div className="bg-red-50 rounded-xl p-4 border border-red-200">
-                        <p className="text-xs font-bold text-red-700 uppercase mb-1">{i18n.language === 'ar' ? 'السبب' : 'Cause'}</p>
-                        <p className="text-sm text-red-800">{treatmentData.cause}</p>
-                      </div>
-                    )}
-                    {treatmentData.symptoms && (
-                      <div className="bg-orange-50 rounded-xl p-4 border border-orange-200">
-                        <p className="text-xs font-bold text-orange-700 uppercase mb-1">{i18n.language === 'ar' ? 'الأعراض' : 'Symptoms'}</p>
-                        <p className="text-sm text-orange-800">{treatmentData.symptoms}</p>
-                      </div>
-                    )}
-                    {treatmentData.treatment?.length > 0 && (
-                      <div className="bg-green-50 rounded-xl p-4 border border-green-200">
-                        <p className="text-xs font-bold text-green-700 uppercase mb-2">{i18n.language === 'ar' ? 'خطوات العلاج' : 'Treatment Steps'}</p>
-                        <ol className="space-y-1">
-                          {treatmentData.treatment.map((step: string, i: number) => (
-                            <li key={i} className="text-sm text-green-800 flex gap-2">
-                              <span className="font-bold shrink-0">{i + 1}.</span>
-                              <span>{step}</span>
-                            </li>
-                          ))}
-                        </ol>
-                      </div>
-                    )}
-                    {treatmentData.prevention && (
-                      <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
-                        <p className="text-xs font-bold text-blue-700 uppercase mb-1">{i18n.language === 'ar' ? 'الوقاية' : 'Prevention'}</p>
-                        <p className="text-sm text-blue-800">{treatmentData.prevention}</p>
-                      </div>
-                    )}
-                    {treatmentData.recovery_time && (
-                      <div className="bg-purple-50 rounded-xl p-4 border border-purple-200">
-                        <p className="text-xs font-bold text-purple-700 uppercase mb-1">{i18n.language === 'ar' ? 'وقت التعافي' : 'Recovery Time'}</p>
-                        <p className="text-sm text-purple-800">{treatmentData.recovery_time}</p>
-                      </div>
-                    )}
-                    <button onClick={() => setTreatmentData(null)} className="text-xs text-gray-400 hover:text-gray-600 mt-1">
-                      {i18n.language === 'ar' ? 'إخفاء' : 'Hide'}
+              {plant.last_health_check && (
+                <p className="text-xs text-gray-500 mb-3">
+                  {i18n.language === 'ar' ? 'آخر فحص:' : 'Last checked:'} {formatDateTime(plant.last_health_check)}
+                </p>
+              )}
+
+              {plant.health_notes && (
+                <div className="bg-white/60 rounded-xl p-4 mb-4">
+                  <p className="text-sm leading-relaxed">{plant.health_notes}</p>
+                </div>
+              )}
+
+              {/* Treatment Tips — only when not healthy */}
+              {plant.health_status && plant.health_status !== 'healthy' && (
+                <div className="mt-3 pt-3 border-t border-white/40">
+                  <p className="text-sm font-semibold mb-2">
+                    🩺 {i18n.language === 'ar' ? 'نصائح العلاج بالذكاء الاصطناعي' : 'AI Treatment Tips'}
+                  </p>
+                  {!treatmentData ? (
+                    <button
+                      onClick={handleGetTreatment}
+                      disabled={loadingTreatment}
+                      className="w-full bg-white/80 hover:bg-white text-gray-800 font-semibold py-2.5 px-4 rounded-xl transition-all disabled:opacity-50 border border-white/60 text-sm"
+                    >
+                      {loadingTreatment ? (
+                        <span className="flex items-center justify-center gap-2">
+                          <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          {i18n.language === 'ar' ? 'جاري التحليل...' : 'Getting tips...'}
+                        </span>
+                      ) : (i18n.language === 'ar' ? '🤖 احصل على نصائح العلاج' : '🤖 Get Treatment Tips')}
                     </button>
-                  </div>
-                )}
-              </div>
-            )}
+                  ) : (
+                    <div className="space-y-2 mt-2">
+                      {treatmentData.cause && <div className="bg-white/80 rounded-xl p-3 border border-red-200"><p className="text-xs font-bold text-red-700 uppercase mb-1">{i18n.language === 'ar' ? 'السبب' : 'Cause'}</p><p className="text-sm text-red-800">{treatmentData.cause}</p></div>}
+                      {treatmentData.symptoms && <div className="bg-white/80 rounded-xl p-3 border border-orange-200"><p className="text-xs font-bold text-orange-700 uppercase mb-1">{i18n.language === 'ar' ? 'الأعراض' : 'Symptoms'}</p><p className="text-sm text-orange-800">{treatmentData.symptoms}</p></div>}
+                      {treatmentData.treatment?.length > 0 && (
+                        <div className="bg-white/80 rounded-xl p-3 border border-green-200">
+                          <p className="text-xs font-bold text-green-700 uppercase mb-1">{i18n.language === 'ar' ? 'خطوات العلاج' : 'Treatment Steps'}</p>
+                          <ol className="space-y-1">{treatmentData.treatment.map((step: string, i: number) => <li key={i} className="text-sm text-green-800 flex gap-2"><span className="font-bold shrink-0">{i + 1}.</span><span>{step}</span></li>)}</ol>
+                        </div>
+                      )}
+                      {treatmentData.prevention && <div className="bg-white/80 rounded-xl p-3 border border-blue-200"><p className="text-xs font-bold text-blue-700 uppercase mb-1">{i18n.language === 'ar' ? 'الوقاية' : 'Prevention'}</p><p className="text-sm text-blue-800">{treatmentData.prevention}</p></div>}
+                      {treatmentData.recovery_time && <div className="bg-white/80 rounded-xl p-3 border border-purple-200"><p className="text-xs font-bold text-purple-700 uppercase mb-1">{i18n.language === 'ar' ? 'وقت التعافي' : 'Recovery Time'}</p><p className="text-sm text-purple-800">{treatmentData.recovery_time}</p></div>}
+                      <button onClick={() => setTreatmentData(null)} className="text-xs text-gray-500 hover:text-gray-700 mt-1">{i18n.language === 'ar' ? 'إخفاء' : 'Hide'}</button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
             {/* Action Buttons */}
             <div className="bg-white rounded-3xl shadow-xl p-6 border border-gray-100">
