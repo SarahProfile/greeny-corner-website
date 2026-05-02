@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback } from 'react';
 import Header from '@/components/Header';
 
-const AI_API_URL = 'http://37.60.236.44:3002';
+const AI_API_URL = '/api/identify';
 
 interface IdentifyResult {
   species: string;
@@ -99,7 +99,7 @@ export default function PlantIdentifierPage() {
     try {
       const form = new FormData();
       form.append('image', file);
-      const res = await fetch(`${AI_API_URL}/identify`, { method: 'POST', body: form });
+      const res = await fetch(AI_API_URL, { method: 'POST', body: form });
       const json = await res.json();
       if (!res.ok || !json.success) throw new Error(json.error?.message || 'Identification failed');
       setResult(json.data);
@@ -393,7 +393,7 @@ export default function PlantIdentifierPage() {
 
         {/* API info footer */}
         <div className="mt-8 text-center text-xs text-gray-400 space-y-1">
-          <p>Connects directly to <code className="bg-gray-100 px-1.5 py-0.5 rounded">{AI_API_URL}</code></p>
+          <p>Powered by Greeny AI Model · <code className="bg-gray-100 px-1.5 py-0.5 rounded">/api/identify</code></p>
           <p>12 plant species · 38 disease classes · Redis-cached results</p>
         </div>
       </main>
