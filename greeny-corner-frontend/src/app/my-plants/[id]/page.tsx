@@ -10,6 +10,7 @@ import Header from '@/components/Header';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import { useTranslation } from 'react-i18next';
 import { translatePlantValue } from '@/lib/plantTranslations';
+import { translateText } from '@/lib/translateText';
 
 interface PlantDetailPageProps {
   params: Promise<{ id: string }>;
@@ -18,6 +19,10 @@ interface PlantDetailPageProps {
 export default function PlantDetailPage({ params }: PlantDetailPageProps) {
   const { t, i18n } = useTranslation();
   const [plant, setPlant] = useState<Plant | null>(null);
+  const [translatedPlantName, setTranslatedPlantName] = useState<string | null>(null);
+  const [translatedToxicity, setTranslatedToxicity] = useState<string | null>(null);
+  const [translatedBenefits, setTranslatedBenefits] = useState<string[] | null>(null);
+  const [translatedFacts, setTranslatedFacts] = useState<string[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [plantId, setPlantId] = useState<string>('');
@@ -86,12 +91,56 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
     };
   }, [plantId]);
 
+  const formatDays = (n: number): string => {
+    if (i18n.language !== 'ar') return `${n} ${n === 1 ? t('common.day') : t('common.daysPlural')}`;
+    if (n === 1) return 'يوم واحد';
+    if (n === 2) return 'يومين';
+    if (n >= 3 && n <= 10) return `${n} أيام`;
+    return `${n} يوم`;
+  };
+
+  const getLocalizedPlantName = (p: Plant) => {
+    if (i18n.language === 'ar') {
+      return p.api_data?.name_ar || p.api_data?.arabic_name || translatedPlantName || p.name;
+    }
+    // English: use back-translated name only if it doesn't contain Arabic
+    const hasArabic = (s: string) => /[\u0600-\u06FF]/.test(s);
+    if (translatedPlantName && !hasArabic(translatedPlantName)) return translatedPlantName;
+    return hasArabic(p.name) ? p.name : p.name;
+  };
+
   const fetchPlant = async () => {
     try {
       const data = await plantsAPI.getPlant(parseInt(plantId));
       setPlant(data);
-      // Also fetch diseases and nutrition data
       fetchDiseasesAndNutrition();
+      // Reset all translation states before re-translating
+      setTranslatedPlantName(null);
+      setTranslatedToxicity(null);
+      setTranslatedBenefits(null);
+      setTranslatedFacts(null);
+      const hasArabicChars = /[\u0600-\u06FF]/.test(data.name);
+      if (i18n.language === 'ar') {
+        const hasArName = data.api_data?.name_ar || data.api_data?.arabic_name;
+        if (!hasArName && !hasArabicChars) {
+          translateText(data.name, 'ar').then((result) => {
+            if (result !== data.name) setTranslatedPlantName(result);
+          });
+        }
+        if (data.api_data?.toxicity) {
+          translateText(data.api_data.toxicity, 'ar').then(setTranslatedToxicity);
+        }
+        if (data.api_data?.benefits?.length) {
+          Promise.all(data.api_data.benefits.map((b) => translateText(b, 'ar'))).then(setTranslatedBenefits);
+        }
+        if (data.api_data?.interesting_facts?.length) {
+          Promise.all(data.api_data.interesting_facts.map((f) => translateText(f, 'ar'))).then(setTranslatedFacts);
+        }
+      } else if (hasArabicChars) {
+        translateText(data.name, 'en', 'ar').then((result) => {
+          if (result !== data.name) setTranslatedPlantName(result);
+        });
+      }
     } catch (err: any) {
       setError(t('plantDetail.failedToFetch'));
     } finally {
@@ -114,11 +163,16 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
 
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString();
+    const locale = i18n.language === 'ar' ? 'ar-AE' : 'en-AE';
+    return new Date(dateString).toLocaleDateString(locale);
   };
 
   const formatDateTime = (dateString: string) => {
-    return new Date(dateString).toLocaleString();
+    const locale = i18n.language === 'ar' ? 'ar-AE' : 'en-AE';
+    return new Date(dateString).toLocaleString(locale, {
+      year: 'numeric', month: 'numeric', day: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    });
   };
 
   const handleDelete = async () => {
@@ -148,11 +202,11 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
       // Schedule next notification
       const nextWateringDate = new Date(response.next_watering_date);
       if (notificationService.canSendNotifications()) {
-        notificationService.scheduleWateringNotification(plant.name, plant.id, nextWateringDate);
+        notificationService.scheduleWateringNotification(getLocalizedPlantName(plant), plant.id, nextWateringDate);
       }
 
       // Show success message
-      alert(t('plantDetail.wateringSuccess', { plantName: plant.name, nextDate: nextWateringDate.toLocaleDateString() }));
+      alert(t('plantDetail.wateringSuccess', { plantName: getLocalizedPlantName(plant), nextDate: nextWateringDate.toLocaleDateString(i18n.language === 'ar' ? 'ar-AE' : 'en-AE') }));
 
     } catch (err: any) {
       setError(err.response?.data?.message || t('plantDetail.failedToUpdate'));
@@ -177,11 +231,11 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
       // Reschedule notifications with new interval
       const nextWateringDate = new Date(response.next_watering_date);
       if (notificationService.canSendNotifications()) {
-        notificationService.scheduleWateringNotification(plant.name, plant.id, nextWateringDate);
+        notificationService.scheduleWateringNotification(getLocalizedPlantName(plant), plant.id, nextWateringDate);
       }
 
       setShowEditSchedule(false);
-      alert(t('plantDetail.scheduleUpdateSuccess', { plantName: plant.name, interval: newWateringInterval }));
+      alert(t('plantDetail.scheduleUpdateSuccess', { plantName: getLocalizedPlantName(plant), interval: newWateringInterval }));
 
     } catch (err: any) {
       setError(err.response?.data?.message || t('plantDetail.failedToUpdate'));
@@ -262,7 +316,7 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
 
   if (error || !plant) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-green-50">
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-green-50" dir={i18n.language === 'ar' ? 'rtl' : 'ltr'}>
         <Header />
 
         <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
@@ -350,7 +404,7 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
             {/* Header Card */}
             <div className="bg-white rounded-3xl shadow-xl p-8 border border-emerald-100">
               <h1 className="text-4xl font-bold text-gray-900 mb-3 bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-                {plant.name}
+                {getLocalizedPlantName(plant)}
               </h1>
 
               {(plant.scientific_name || plant.api_data?.scientific_name) && (
@@ -387,8 +441,8 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
                           : wateringStatus === 'today'
                           ? t('plants.waterToday')
                           : wateringStatus === 'soon'
-                          ? t('plantDetail.waterInDays', { days: daysUntil, daysText: daysUntil === 1 ? t('common.day') : t('common.daysPlural') })
-                          : t('plantDetail.waterInDays', { days: daysUntil, daysText: t('common.daysPlural') })}
+                          ? (i18n.language === 'ar' ? `السقي بعد ${formatDays(daysUntil ?? 0)}` : t('plantDetail.waterInDays', { days: daysUntil ?? 0, daysText: daysUntil === 1 ? t('common.day') : t('common.daysPlural') }))
+                          : (i18n.language === 'ar' ? `السقي بعد ${formatDays(daysUntil ?? 0)}` : t('plantDetail.waterInDays', { days: daysUntil ?? 0, daysText: t('common.daysPlural') }))}
                       </h3>
                       <p className="text-sm text-gray-600">
                         {formatDateTime(plant.care_schedule.next_watering_date)}
@@ -605,15 +659,15 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
                 <span className="text-3xl mr-3">⚠️</span>
                 {t('plantDetail.safetyInformation')}
               </h3>
-              <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-l-4 border-amber-400 p-6 rounded-2xl">
+              <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-s-4 border-amber-400 p-6 rounded-2xl">
                 <div className="flex items-start">
                   <div className="flex-shrink-0">
                     <svg className="h-6 w-6 text-amber-500" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                     </svg>
                   </div>
-                  <div className="ml-4">
-                    <p className="text-sm text-amber-800 font-medium leading-relaxed">{plant.api_data.toxicity}</p>
+                  <div className="ms-4">
+                    <p className="text-sm text-amber-800 font-medium leading-relaxed">{(i18n.language === 'ar' && translatedToxicity) ? translatedToxicity : plant.api_data.toxicity}</p>
                   </div>
                 </div>
               </div>
@@ -628,9 +682,9 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
                 {t('plantDetail.plantBenefits')}
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {plant.api_data.benefits.map((benefit, index) => (
+                {(i18n.language === 'ar' && translatedBenefits ? translatedBenefits : plant.api_data.benefits).map((benefit, index) => (
                   <div key={index} className="flex items-center bg-gradient-to-r from-green-50 to-emerald-50 p-4 rounded-2xl border border-green-200 hover:shadow-md transition-shadow">
-                    <div className="flex-shrink-0 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center mr-4">
+                    <div className="flex-shrink-0 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center me-4">
                       <svg className="h-5 w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
@@ -650,9 +704,9 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
                 {t('plantDetail.didYouKnow')}
               </h3>
               <div className="space-y-4">
-                {plant.api_data.interesting_facts.map((fact, index) => (
+                {(i18n.language === 'ar' && translatedFacts ? translatedFacts : plant.api_data.interesting_facts).map((fact, index) => (
                   <div key={index} className="flex items-start bg-gradient-to-r from-indigo-50 to-purple-50 p-5 rounded-2xl border border-indigo-200 hover:shadow-md transition-shadow">
-                    <div className="flex-shrink-0 w-8 h-8 bg-indigo-500 rounded-full flex items-center justify-center mr-4 mt-0.5">
+                    <div className="flex-shrink-0 w-8 h-8 bg-indigo-500 rounded-full flex items-center justify-center me-4 mt-0.5">
                       <svg className="h-5 w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
@@ -860,7 +914,7 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
               </div>
               <div>
                 <h3 className="text-xl font-bold text-gray-900">{t('plantDetail.editWateringSchedule')}</h3>
-                <p className="text-sm text-gray-600 mt-1">for {plant?.name}</p>
+                <p className="text-sm text-gray-600 mt-1">{t('plantDetail.forPlant', { plantName: plant?.name })}</p>
               </div>
             </div>
 
@@ -922,7 +976,7 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
                 <strong>{t('plantDetail.nextWateringLabel')}</strong>
               </p>
               <p className="text-lg font-bold text-emerald-700 mt-1">
-                {new Date(Date.now() + newWateringInterval * 24 * 60 * 60 * 1000).toLocaleDateString()}
+                {new Date(Date.now() + newWateringInterval * 24 * 60 * 60 * 1000).toLocaleDateString(i18n.language === 'ar' ? 'ar-AE' : 'en-AE')}
               </p>
             </div>
 
