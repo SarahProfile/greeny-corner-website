@@ -21,6 +21,7 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
   const [plant, setPlant] = useState<Plant | null>(null);
   const [translatedPlantName, setTranslatedPlantName] = useState<string | null>(null);
   const [translatedToxicity, setTranslatedToxicity] = useState<string | null>(null);
+  const [translatedHealthNotes, setTranslatedHealthNotes] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [plantId, setPlantId] = useState<string>('');
@@ -116,6 +117,7 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
       // Reset all translation states before re-translating
       setTranslatedPlantName(null);
       setTranslatedToxicity(null);
+      setTranslatedHealthNotes(null);
       const hasArabicChars = /[\u0600-\u06FF]/.test(data.name);
       if (i18n.language === 'ar') {
         const hasArName = data.api_data?.name_ar || data.api_data?.arabic_name;
@@ -126,6 +128,9 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
         }
         if (data.api_data?.toxicity) {
           translateText(data.api_data.toxicity, 'ar').then(setTranslatedToxicity);
+        }
+        if (data.health_notes && !/[\u0600-\u06FF]/.test(data.health_notes)) {
+          translateText(data.health_notes, 'ar').then(setTranslatedHealthNotes);
         }
       } else if (hasArabicChars) {
         translateText(data.name, 'en', 'ar').then((result) => {
@@ -240,9 +245,15 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
   const handleCheckHealth = async () => {
     if (!plant) return;
     setCheckingHealth(true);
+    setTranslatedHealthNotes(null);
     try {
       const result = await plantsAPI.checkPlantHealth(plant.id);
-      if (result.success) setPlant(result.plant);
+      if (result.success) {
+        setPlant(result.plant);
+        if (i18n.language === 'ar' && result.plant?.health_notes && !/[؀-ۿ]/.test(result.plant.health_notes)) {
+          translateText(result.plant.health_notes, 'ar').then(setTranslatedHealthNotes);
+        }
+      }
       setTreatmentData(null);
     } catch (err: any) {
       setError(t('plantDetail.failedToUpdate'));
@@ -575,7 +586,7 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
 
               {plant.health_notes && (
                 <div className="bg-white/60 rounded-xl p-4 mb-4">
-                  <p className="text-sm leading-relaxed">{plant.health_notes}</p>
+                  <p className="text-sm leading-relaxed">{(i18n.language === 'ar' && translatedHealthNotes) ? translatedHealthNotes : plant.health_notes}</p>
                 </div>
               )}
 
