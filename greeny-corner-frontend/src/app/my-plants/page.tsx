@@ -374,7 +374,7 @@ export default function MyPlantsPage() {
                           disabled={wateringIds.has(plant.id)}
                           className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white text-xs font-semibold rounded-full transition-colors shadow-sm"
                         >
-                          💧 {wateringIds.has(plant.id) ? '…' : t('plants.water') || 'Water'}
+                          💧 {wateringIds.has(plant.id) ? '…' : t('plants.actionWater')}
                         </button>
                       )}
                     </div>
