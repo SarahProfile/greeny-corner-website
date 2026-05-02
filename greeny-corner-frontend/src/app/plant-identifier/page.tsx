@@ -214,7 +214,8 @@ export default function PlantIdentifierPage() {
             <canvas ref={canvasRef} className="hidden" />
 
             {/* Action row */}
-            <div className="flex gap-3 mt-4">
+            <div className="flex flex-col gap-3 mt-4">
+              <div className="flex gap-3">
               <button
                 onClick={() => fileInputRef.current?.click()}
                 className="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl border-2 border-gray-200 text-gray-700 font-semibold hover:border-emerald-300 hover:bg-emerald-50 transition"
@@ -235,10 +236,11 @@ export default function PlantIdentifierPage() {
                 </svg>
                 {showCamera ? 'Cancel Camera' : 'Use Camera'}
               </button>
+              </div>
               <button
                 onClick={identify}
                 disabled={!file || loading}
-                className="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-white
+                className="w-full flex items-center justify-center gap-2 py-4 px-4 rounded-xl font-bold text-white text-lg
                   bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600
                   disabled:opacity-40 disabled:cursor-not-allowed transition shadow-md"
               >
