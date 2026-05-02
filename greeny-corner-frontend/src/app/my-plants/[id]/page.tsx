@@ -462,62 +462,67 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
 
             {/* Watering Status Card */}
             {plant.care_schedule && (
-              <div className={`rounded-3xl shadow-xl p-6 border-2 transition-all duration-300 hover:shadow-2xl ${
+              <div className={`rounded-3xl shadow-xl p-6 border-2 transition-all duration-300 ${
                 wateringStatus === 'overdue'
-                  ? 'bg-gradient-to-br from-red-50 to-pink-50 border-red-300'
+                  ? 'bg-red-50 border-red-300'
                   : wateringStatus === 'today'
-                  ? 'bg-gradient-to-br from-blue-50 to-cyan-50 border-blue-300'
+                  ? 'bg-blue-50 border-blue-300'
                   : wateringStatus === 'soon'
-                  ? 'bg-gradient-to-br from-yellow-50 to-amber-50 border-yellow-300'
-                  : 'bg-gradient-to-br from-emerald-50 to-green-50 border-emerald-300'
+                  ? 'bg-yellow-50 border-yellow-300'
+                  : 'bg-emerald-50 border-emerald-300'
               }`}>
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center">
-                    <div className="text-4xl mr-4">
-                      {wateringStatus === 'overdue' ? '🚨' : wateringStatus === 'today' ? '💧' : wateringStatus === 'soon' ? '⏰' : '✨'}
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-bold text-gray-900">
-                        {wateringStatus === 'overdue'
-                          ? t('plants.overdueWatering')
-                          : wateringStatus === 'today'
-                          ? t('plants.waterToday')
-                          : wateringStatus === 'soon'
-                          ? (i18n.language === 'ar' ? `السقي بعد ${formatDays(daysUntil ?? 0)}` : t('plantDetail.waterInDays', { days: daysUntil ?? 0, daysText: daysUntil === 1 ? t('common.day') : t('common.daysPlural') }))
-                          : (i18n.language === 'ar' ? `السقي بعد ${formatDays(daysUntil ?? 0)}` : t('plantDetail.waterInDays', { days: daysUntil ?? 0, daysText: t('common.daysPlural') }))}
-                      </h3>
-                      <p className="text-sm text-gray-600">
-                        {formatDateTime(plant.care_schedule.next_watering_date)}
-                      </p>
-                    </div>
-                  </div>
+                {/* Status Header */}
+                <div className="flex items-center gap-3 mb-1" dir={i18n.language === 'ar' ? 'rtl' : 'ltr'}>
+                  <span className="text-3xl">
+                    {wateringStatus === 'overdue' ? '🚨' : wateringStatus === 'today' ? '💧' : wateringStatus === 'soon' ? '⏰' : '✨'}
+                  </span>
+                  <h3 className="text-xl font-bold text-gray-900">
+                    {wateringStatus === 'overdue'
+                      ? t('plants.overdueWatering')
+                      : wateringStatus === 'today'
+                      ? t('plants.waterToday')
+                      : i18n.language === 'ar'
+                      ? `السقي بعد ${formatDays(daysUntil ?? 0)}`
+                      : t('plantDetail.waterInDays', { days: daysUntil ?? 0, daysText: daysUntil === 1 ? t('common.day') : t('common.daysPlural') })}
+                  </h3>
                 </div>
+                <p className="text-sm text-gray-500 mb-5" dir={i18n.language === 'ar' ? 'rtl' : 'ltr'}>
+                  {formatDateTime(plant.care_schedule.next_watering_date)}
+                </p>
 
-                <div className="flex gap-3">
-                  <button
-                    onClick={handleWaterNow}
-                    disabled={watering}
-                    className="flex-1 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-                  >
-                    {watering ? (
-                      <span className="flex items-center justify-center">
-                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        {t('plantDetail.wateringInProgress')}
-                      </span>
-                    ) : (
-                      <span className="flex items-center justify-center">
-                        💧 {t('plantDetail.waterNow')}
-                      </span>
-                    )}
-                  </button>
+                {/* Buttons */}
+                <div className="flex gap-3" dir={i18n.language === 'ar' ? 'rtl' : 'ltr'}>
+                  {/* Water Now — only shown when overdue or due today */}
+                  {(wateringStatus === 'overdue' || wateringStatus === 'today') && (
+                    <button
+                      onClick={handleWaterNow}
+                      disabled={watering}
+                      className="flex-1 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-bold py-4 px-6 rounded-2xl shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {watering ? (
+                        <span className="flex items-center justify-center gap-2">
+                          <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          {t('plantDetail.wateringInProgress')}
+                        </span>
+                      ) : (
+                        <span className="flex items-center justify-center gap-2 text-lg">
+                          💧💧 {t('plants.waterNow')}
+                        </span>
+                      )}
+                    </button>
+                  )}
+
+                  {/* Edit Schedule — always shown */}
                   <button
                     onClick={handleEditSchedule}
-                    className="flex-1 bg-white hover:bg-gray-50 text-gray-800 font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border-2 border-gray-200"
+                    className={`${wateringStatus === 'overdue' || wateringStatus === 'today' ? 'flex-1' : 'w-full'} bg-white hover:bg-gray-50 text-gray-800 font-bold py-4 px-6 rounded-2xl shadow-md hover:shadow-lg transition-all duration-200 border-2 border-gray-200`}
                   >
-                    📅 {t('plantDetail.editSchedule')}
+                    <span className="flex items-center justify-center gap-2 text-lg">
+                      📅 {t('plantDetail.editSchedule')}
+                    </span>
                   </button>
                 </div>
               </div>
