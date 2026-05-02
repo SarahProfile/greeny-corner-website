@@ -48,6 +48,8 @@ export interface Plant {
   image_url: string;
   api_data: {
     name: string;
+    name_ar?: string;
+    arabic_name?: string;
     confidence: number;
     common_names: string[];
     description: string;
@@ -224,6 +226,14 @@ export const plantsAPI = {
     console.log('[API] Fetching diseases/nutrition with language:', language);
     const response = await api.get(`/plants/${id}/diseases-nutrition?language=${language}`);
     console.log('[API] Received diseases/nutrition data:', response.data);
+    return response.data;
+  },
+
+  getDiseaseTreatment: async (disease: string, plantName: string) => {
+    const language = (typeof window !== 'undefined'
+      ? (localStorage.getItem('i18nextLng') || localStorage.getItem('language'))
+      : null) || 'en';
+    const response = await api.post('/plants/disease-treatment', { disease, plant_name: plantName, language });
     return response.data;
   },
 };

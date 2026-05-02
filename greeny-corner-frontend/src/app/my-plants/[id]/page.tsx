@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -30,6 +30,10 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
   const [showEditSchedule, setShowEditSchedule] = useState(false);
   const [newWateringInterval, setNewWateringInterval] = useState(7);
   const [updatingSchedule, setUpdatingSchedule] = useState(false);
+  const [updatingImage, setUpdatingImage] = useState(false);
+  const [treatmentData, setTreatmentData] = useState<any>(null);
+  const [loadingTreatment, setLoadingTreatment] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   const { user, logout, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -216,6 +220,37 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
     }
   };
 
+  const handleUpdateImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !plant) return;
+    setUpdatingImage(true);
+    try {
+      const result = await plantsAPI.updatePlantImage(plant.id, file, i18n.language);
+      setPlant(result.plant);
+      setTreatmentData(null);
+    } catch (err: any) {
+      setError(t('plantDetail.failedToUpdate'));
+    } finally {
+      setUpdatingImage(false);
+      if (imageInputRef.current) imageInputRef.current.value = '';
+    }
+  };
+
+  const handleGetTreatment = async () => {
+    if (!plant) return;
+    const disease = plant.health_notes || plant.health_status || 'unknown disease';
+    const plantName = getLocalizedPlantName(plant);
+    setLoadingTreatment(true);
+    try {
+      const result = await plantsAPI.getDiseaseTreatment(disease, plantName);
+      if (result.success) setTreatmentData(result.data);
+    } catch (err: any) {
+      setError(t('plantDetail.failedToUpdate'));
+    } finally {
+      setLoadingTreatment(false);
+    }
+  };
+
   const getRecommendedInterval = () => {
     if (plant?.api_data?.care_info?.watering_interval_days) {
       return plant.api_data.care_info.watering_interval_days;
@@ -368,6 +403,26 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
                 alt={plant.name}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              <div className="absolute bottom-4 right-4">
+                <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleUpdateImage} />
+                <button
+                  onClick={() => imageInputRef.current?.click()}
+                  disabled={updatingImage}
+                  className="bg-white/90 hover:bg-white text-gray-800 font-semibold py-2 px-4 rounded-xl shadow-lg transition-all flex items-center gap-2 disabled:opacity-60"
+                >
+                  {updatingImage ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4 text-emerald-600" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      {i18n.language === 'ar' ? 'جاري التحليل...' : 'Analyzing...'}
+                    </>
+                  ) : (
+                    <>{i18n.language === 'ar' ? '📷 تحديث الصورة' : '📷 Update Photo'}</>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
 
@@ -474,6 +529,78 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
                     )}
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* Treatment Tips */}
+            {plant.health_status && plant.health_status !== 'healthy' && (
+              <div className="bg-white rounded-3xl shadow-xl p-6 border border-orange-100">
+                <h3 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
+                  <span className="text-2xl">🩺</span>
+                  {i18n.language === 'ar' ? 'نصائح العلاج بالذكاء الاصطناعي' : 'AI Treatment Tips'}
+                </h3>
+                {!treatmentData ? (
+                  <button
+                    onClick={handleGetTreatment}
+                    disabled={loadingTreatment}
+                    className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold py-3 px-6 rounded-xl shadow-lg transition-all duration-300 transform hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                  >
+                    {loadingTreatment ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        {i18n.language === 'ar' ? 'جاري التحليل...' : 'Getting tips...'}
+                      </span>
+                    ) : (
+                      i18n.language === 'ar' ? '🤖 احصل على نصائح العلاج' : '🤖 Get Treatment Tips'
+                    )}
+                  </button>
+                ) : (
+                  <div className="space-y-3">
+                    {treatmentData.cause && (
+                      <div className="bg-red-50 rounded-xl p-4 border border-red-200">
+                        <p className="text-xs font-bold text-red-700 uppercase mb-1">{i18n.language === 'ar' ? 'السبب' : 'Cause'}</p>
+                        <p className="text-sm text-red-800">{treatmentData.cause}</p>
+                      </div>
+                    )}
+                    {treatmentData.symptoms && (
+                      <div className="bg-orange-50 rounded-xl p-4 border border-orange-200">
+                        <p className="text-xs font-bold text-orange-700 uppercase mb-1">{i18n.language === 'ar' ? 'الأعراض' : 'Symptoms'}</p>
+                        <p className="text-sm text-orange-800">{treatmentData.symptoms}</p>
+                      </div>
+                    )}
+                    {treatmentData.treatment?.length > 0 && (
+                      <div className="bg-green-50 rounded-xl p-4 border border-green-200">
+                        <p className="text-xs font-bold text-green-700 uppercase mb-2">{i18n.language === 'ar' ? 'خطوات العلاج' : 'Treatment Steps'}</p>
+                        <ol className="space-y-1">
+                          {treatmentData.treatment.map((step: string, i: number) => (
+                            <li key={i} className="text-sm text-green-800 flex gap-2">
+                              <span className="font-bold shrink-0">{i + 1}.</span>
+                              <span>{step}</span>
+                            </li>
+                          ))}
+                        </ol>
+                      </div>
+                    )}
+                    {treatmentData.prevention && (
+                      <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
+                        <p className="text-xs font-bold text-blue-700 uppercase mb-1">{i18n.language === 'ar' ? 'الوقاية' : 'Prevention'}</p>
+                        <p className="text-sm text-blue-800">{treatmentData.prevention}</p>
+                      </div>
+                    )}
+                    {treatmentData.recovery_time && (
+                      <div className="bg-purple-50 rounded-xl p-4 border border-purple-200">
+                        <p className="text-xs font-bold text-purple-700 uppercase mb-1">{i18n.language === 'ar' ? 'وقت التعافي' : 'Recovery Time'}</p>
+                        <p className="text-sm text-purple-800">{treatmentData.recovery_time}</p>
+                      </div>
+                    )}
+                    <button onClick={() => setTreatmentData(null)} className="text-xs text-gray-400 hover:text-gray-600 mt-1">
+                      {i18n.language === 'ar' ? 'إخفاء' : 'Hide'}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
