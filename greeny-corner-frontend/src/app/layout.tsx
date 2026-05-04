@@ -110,7 +110,7 @@ export const metadata: Metadata = {
     },
   },
   verification: {
-    google: 'google-site-verification-code-here',
+    google: '0Nc3R-9EyagU5Cm1t2uKhzrDFueueuT3EutufLXzscM',
   },
 };
 
