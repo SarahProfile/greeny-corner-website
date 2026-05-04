@@ -86,6 +86,10 @@ export const metadata: Metadata = {
   },
   alternates: {
     canonical: 'https://www.greenycorner.ae',
+    languages: {
+      'en': 'https://www.greenycorner.ae',
+      'ar': 'https://www.greenycorner.ae',
+    },
   },
   category: 'technology',
   applicationName: 'Greeny Corner',

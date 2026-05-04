@@ -1,7 +1,20 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
+import Script from 'next/script';
 import Header from '@/components/Header';
+
+const structuredData = {
+  '@context': 'https://schema.org',
+  '@type': 'WebApplication',
+  name: 'Greeny Corner Plant Identifier',
+  url: 'https://www.greenycorner.ae/plant-identifier',
+  description: 'Free AI-powered plant identification tool. Upload a photo to instantly identify any plant and get care tips, watering schedules, and health advice.',
+  applicationCategory: 'UtilitiesApplication',
+  operatingSystem: 'Web',
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'AED' },
+  featureList: ['AI plant identification', 'Disease detection', 'Care advice', 'Watering schedule'],
+};
 
 const AI_API_URL = '/api/identify';
 
@@ -39,6 +52,7 @@ export default function PlantIdentifierPage() {
     reader.onloadend = () => setPreview(reader.result as string);
     reader.readAsDataURL(f);
   };
+
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
@@ -134,6 +148,8 @@ export default function PlantIdentifierPage() {
   };
 
   return (
+    <>
+    <Script id="plant-identifier-schema" type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-green-50">
       <Header />
 
@@ -253,7 +269,7 @@ export default function PlantIdentifierPage() {
                     Analyzing…
                   </>
                 ) : (
-                  <>🔍 Identify</>
+                  <>🔍 Identify with Greeny AI</>
                 )}
               </button>
             </div>
@@ -398,5 +414,6 @@ export default function PlantIdentifierPage() {
         </div>
       </main>
     </div>
+    </>
   );
 }
