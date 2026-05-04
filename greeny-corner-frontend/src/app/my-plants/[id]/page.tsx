@@ -28,9 +28,16 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [watering, setWatering] = useState(false);
+  const [fertilizing, setFertilizing] = useState(false);
+  const [tilling, setTilling] = useState(false);
   const [showEditSchedule, setShowEditSchedule] = useState(false);
+  const [showEditFertilizingSchedule, setShowEditFertilizingSchedule] = useState(false);
+  const [showEditTillingSchedule, setShowEditTillingSchedule] = useState(false);
   const [newWateringInterval, setNewWateringInterval] = useState(7);
+  const [newFertilizingInterval, setNewFertilizingInterval] = useState(30);
+  const [newTillingInterval, setNewTillingInterval] = useState(60);
   const [updatingSchedule, setUpdatingSchedule] = useState(false);
+  const [shareSuccess, setShareSuccess] = useState(false);
   const [updatingImage, setUpdatingImage] = useState(false);
   const [checkingHealth, setCheckingHealth] = useState(false);
   const [treatmentData, setTreatmentData] = useState<any>(null);
@@ -104,10 +111,8 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
     if (i18n.language === 'ar') {
       return p.api_data?.name_ar || p.api_data?.arabic_name || translatedPlantName || p.name;
     }
-    // English: use back-translated name only if it doesn't contain Arabic
-    const hasArabic = (s: string) => /[\u0600-\u06FF]/.test(s);
-    if (translatedPlantName && !hasArabic(translatedPlantName)) return translatedPlantName;
-    return hasArabic(p.name) ? p.name : p.name;
+    // English: api_data.name is always the original English name from AI identification
+    return p.api_data?.name || p.name;
   };
 
   const fetchPlant = async () => {
@@ -132,11 +137,8 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
         if (data.health_notes && !/[\u0600-\u06FF]/.test(data.health_notes)) {
           translateText(data.health_notes, 'ar').then(setTranslatedHealthNotes);
         }
-      } else if (hasArabicChars) {
-        translateText(data.name, 'en', 'ar').then((result) => {
-          if (result !== data.name) setTranslatedPlantName(result);
-        });
       }
+      // No back-translation for English — api_data.name always contains the English name
     } catch (err: any) {
       setError(t('plantDetail.failedToFetch'));
     } finally {
@@ -199,6 +201,87 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
 
   const handleEditSchedule = () => {
     setShowEditSchedule(true);
+  };
+
+  const handleFertilizeNow = async () => {
+    if (!plant) return;
+    setFertilizing(true);
+    try {
+      const response = await plantsAPI.fertilizePlant(plant.id);
+      const updatedPlant = response.plant || { ...plant };
+      setPlant(updatedPlant);
+      const nextDate = response.next_fertilizing_date
+        ? new Date(response.next_fertilizing_date).toLocaleDateString(i18n.language === 'ar' ? 'ar-AE' : 'en-AE')
+        : '-';
+      alert(t('plantDetail.fertilizingSuccess', { plantName: getLocalizedPlantName(plant), nextDate }));
+    } catch (err: any) {
+      setError(err.response?.data?.message || t('plantDetail.failedToUpdate'));
+    } finally {
+      setFertilizing(false);
+    }
+  };
+
+  const handleTillNow = async () => {
+    if (!plant) return;
+    setTilling(true);
+    try {
+      const response = await plantsAPI.tillPlant(plant.id);
+      const updatedPlant = response.plant || { ...plant };
+      setPlant(updatedPlant);
+      const nextDate = response.next_tilling_date
+        ? new Date(response.next_tilling_date).toLocaleDateString(i18n.language === 'ar' ? 'ar-AE' : 'en-AE')
+        : '-';
+      alert(t('plantDetail.tillingSuccess', { plantName: getLocalizedPlantName(plant), nextDate }));
+    } catch (err: any) {
+      setError(err.response?.data?.message || t('plantDetail.failedToUpdate'));
+    } finally {
+      setTilling(false);
+    }
+  };
+
+  const handleShare = async () => {
+    if (!plant) return;
+    const name = getLocalizedPlantName(plant);
+    const scientific = plant.scientific_name || plant.api_data?.scientific_name || '';
+    const desc = plant.api_data?.description ? plant.api_data.description.slice(0, 120) + '...' : '';
+    const text = `🌿 ${name}${scientific ? ` (${scientific})` : ''}\n${desc}\n\n${t('share.sharedFrom')} 🪴\nhttps://greenycorner.ae`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: `${t('share.checkOutPlant')} ${name}`, text, url: 'https://greenycorner.ae' });
+      } else {
+        await navigator.clipboard.writeText(text);
+        setShareSuccess(true);
+        setTimeout(() => setShareSuccess(false), 3000);
+      }
+    } catch {}
+  };
+
+  const handleSaveFertilizingSchedule = async () => {
+    if (!plant || !plant.care_schedule) return;
+    setUpdatingSchedule(true);
+    try {
+      const response = await plantsAPI.updateSchedule(plant.id, { fertilizing_interval_days: newFertilizingInterval });
+      setPlant(response.plant);
+      setShowEditFertilizingSchedule(false);
+    } catch (err: any) {
+      setError(err.response?.data?.message || t('plantDetail.failedToUpdate'));
+    } finally {
+      setUpdatingSchedule(false);
+    }
+  };
+
+  const handleSaveTillingSchedule = async () => {
+    if (!plant || !plant.care_schedule) return;
+    setUpdatingSchedule(true);
+    try {
+      const response = await plantsAPI.updateSchedule(plant.id, { tilling_interval_days: newTillingInterval });
+      setPlant(response.plant);
+      setShowEditTillingSchedule(false);
+    } catch (err: any) {
+      setError(err.response?.data?.message || t('plantDetail.failedToUpdate'));
+    } finally {
+      setUpdatingSchedule(false);
+    }
   };
 
   const handleSaveSchedule = async () => {
@@ -520,7 +603,7 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
                         </span>
                       ) : (
                         <span className="flex items-center justify-center gap-2 text-lg">
-                          💧💧 {t('plants.waterNow')}
+                          {t('plantDetail.waterNow')}
                         </span>
                       )}
                     </button>
@@ -532,12 +615,128 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
                     className={`${wateringStatus === 'overdue' || wateringStatus === 'today' ? 'flex-1' : 'w-full'} bg-white hover:bg-gray-50 text-gray-800 font-bold py-4 px-6 rounded-2xl shadow-md hover:shadow-lg transition-all duration-200 border-2 border-gray-200`}
                   >
                     <span className="flex items-center justify-center gap-2 text-lg">
-                      📅 {t('plantDetail.editSchedule')}
+                      {t('plantDetail.editSchedule')}
                     </span>
                   </button>
                 </div>
               </div>
             )}
+
+            {/* Fertilizing Status Card */}
+            {plant.care_schedule && plant.care_schedule.fertilizing_interval_days ? (() => {
+              const fDays = plant.care_schedule?.next_fertilizing_date
+                ? Math.ceil((new Date(plant.care_schedule.next_fertilizing_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+                : null;
+              const fStatus = fDays === null ? 'unknown' : fDays < 0 ? 'overdue' : fDays === 0 ? 'today' : fDays <= 2 ? 'soon' : 'good';
+              return (
+                <div className={`rounded-3xl shadow-xl p-6 border-2 transition-all duration-300 ${
+                  fStatus === 'overdue' ? 'bg-orange-50 border-orange-300' :
+                  fStatus === 'today' ? 'bg-green-50 border-green-300' :
+                  fStatus === 'soon' ? 'bg-yellow-50 border-yellow-300' :
+                  'bg-emerald-50 border-emerald-300'
+                }`}>
+                  <div className="flex items-center gap-3 mb-1" dir={i18n.language === 'ar' ? 'rtl' : 'ltr'}>
+                    <span className="text-3xl">{fStatus === 'overdue' ? '🚨' : fStatus === 'today' ? '🌱' : '📅'}</span>
+                    <h3 className="text-xl font-bold text-gray-900">
+                      {fStatus === 'overdue' ? `${t('plants.overdue')} — ${t('plantDetail.fertilizingCard')}` :
+                       fStatus === 'today' ? t('plantDetail.fertilizingCard') :
+                       fDays !== null ? `${t('plantDetail.fertilizingCard')} — ${fDays}d` : t('plantDetail.fertilizingCard')}
+                    </h3>
+                  </div>
+                  {plant.care_schedule?.next_fertilizing_date && (
+                    <p className="text-sm text-gray-500 mb-4" dir={i18n.language === 'ar' ? 'rtl' : 'ltr'}>
+                      {formatDateTime(plant.care_schedule.next_fertilizing_date)}
+                    </p>
+                  )}
+                  <div className="flex gap-3" dir={i18n.language === 'ar' ? 'rtl' : 'ltr'}>
+                    {(fStatus === 'overdue' || fStatus === 'today') && (
+                      <button onClick={handleFertilizeNow} disabled={fertilizing}
+                        className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-bold py-3 px-6 rounded-2xl shadow-md transition-all disabled:opacity-60">
+                        {fertilizing ? t('plantDetail.fertilizingInProgress') : t('plantDetail.fertilizeNow')}
+                      </button>
+                    )}
+                    <button onClick={() => { setNewFertilizingInterval(plant.care_schedule?.fertilizing_interval_days || 30); setShowEditFertilizingSchedule(true); }}
+                      className={`${fStatus === 'overdue' || fStatus === 'today' ? 'flex-1' : 'w-full'} bg-white hover:bg-gray-50 text-gray-800 font-bold py-3 px-6 rounded-2xl shadow-md border-2 border-gray-200 transition-all`}>
+                      📅 {t('plantDetail.editFertilizingSchedule')}
+                    </button>
+                  </div>
+                </div>
+              );
+            })() : plant.care_schedule ? (
+              <div className="bg-white rounded-3xl shadow-xl p-5 border-2 border-dashed border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">🌱</span>
+                    <div>
+                      <p className="font-semibold text-gray-700">{t('plantDetail.fertilizingCard')}</p>
+                      <p className="text-sm text-gray-400">{t('plantDetail.notScheduled')}</p>
+                    </div>
+                  </div>
+                  <button onClick={() => { setNewFertilizingInterval(30); setShowEditFertilizingSchedule(true); }}
+                    className="text-sm text-emerald-600 font-semibold hover:text-emerald-700">
+                    + {t('plantDetail.setUpFertilizing')}
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            {/* Tilling Status Card */}
+            {plant.care_schedule && plant.care_schedule.tilling_interval_days ? (() => {
+              const tDays = plant.care_schedule?.next_tilling_date
+                ? Math.ceil((new Date(plant.care_schedule.next_tilling_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+                : null;
+              const tStatus = tDays === null ? 'unknown' : tDays < 0 ? 'overdue' : tDays === 0 ? 'today' : tDays <= 2 ? 'soon' : 'good';
+              return (
+                <div className={`rounded-3xl shadow-xl p-6 border-2 transition-all duration-300 ${
+                  tStatus === 'overdue' ? 'bg-amber-50 border-amber-300' :
+                  tStatus === 'today' ? 'bg-teal-50 border-teal-300' :
+                  tStatus === 'soon' ? 'bg-yellow-50 border-yellow-300' :
+                  'bg-emerald-50 border-emerald-300'
+                }`}>
+                  <div className="flex items-center gap-3 mb-1" dir={i18n.language === 'ar' ? 'rtl' : 'ltr'}>
+                    <span className="text-3xl">{tStatus === 'overdue' ? '🚨' : '🪴'}</span>
+                    <h3 className="text-xl font-bold text-gray-900">
+                      {tStatus === 'overdue' ? `${t('plants.overdue')} — ${t('plantDetail.tillingCard')}` :
+                       tStatus === 'today' ? t('plantDetail.tillingCard') :
+                       tDays !== null ? `${t('plantDetail.tillingCard')} — ${tDays}d` : t('plantDetail.tillingCard')}
+                    </h3>
+                  </div>
+                  {plant.care_schedule?.next_tilling_date && (
+                    <p className="text-sm text-gray-500 mb-4" dir={i18n.language === 'ar' ? 'rtl' : 'ltr'}>
+                      {formatDateTime(plant.care_schedule.next_tilling_date)}
+                    </p>
+                  )}
+                  <div className="flex gap-3" dir={i18n.language === 'ar' ? 'rtl' : 'ltr'}>
+                    {(tStatus === 'overdue' || tStatus === 'today') && (
+                      <button onClick={handleTillNow} disabled={tilling}
+                        className="flex-1 bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white font-bold py-3 px-6 rounded-2xl shadow-md transition-all disabled:opacity-60">
+                        {tilling ? t('plantDetail.tillingInProgress') : t('plantDetail.tillNow')}
+                      </button>
+                    )}
+                    <button onClick={() => { setNewTillingInterval(plant.care_schedule?.tilling_interval_days || 60); setShowEditTillingSchedule(true); }}
+                      className={`${tStatus === 'overdue' || tStatus === 'today' ? 'flex-1' : 'w-full'} bg-white hover:bg-gray-50 text-gray-800 font-bold py-3 px-6 rounded-2xl shadow-md border-2 border-gray-200 transition-all`}>
+                      📅 {t('plantDetail.editTillingSchedule')}
+                    </button>
+                  </div>
+                </div>
+              );
+            })() : plant.care_schedule ? (
+              <div className="bg-white rounded-3xl shadow-xl p-5 border-2 border-dashed border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">🪴</span>
+                    <div>
+                      <p className="font-semibold text-gray-700">{t('plantDetail.tillingCard')}</p>
+                      <p className="text-sm text-gray-400">{t('plantDetail.notScheduled')}</p>
+                    </div>
+                  </div>
+                  <button onClick={() => { setNewTillingInterval(60); setShowEditTillingSchedule(true); }}
+                    className="text-sm text-emerald-600 font-semibold hover:text-emerald-700">
+                    + {t('plantDetail.setUpTilling')}
+                  </button>
+                </div>
+              </div>
+            ) : null}
 
             {/* Plant Health */}
             <div className={`rounded-3xl shadow-xl p-6 border-2 ${plant.health_status ? getHealthStatusColor(plant.health_status) : 'bg-white border-gray-200'}`}>
@@ -632,7 +831,13 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
             </div>
 
             {/* Action Buttons */}
-            <div className="bg-white rounded-3xl shadow-xl p-6 border border-gray-100">
+            <div className="bg-white rounded-3xl shadow-xl p-6 border border-gray-100 space-y-3">
+              <button
+                onClick={handleShare}
+                className="w-full bg-white hover:bg-gray-50 text-gray-800 font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border-2 border-gray-200 flex items-center justify-center gap-2"
+              >
+                🔗 {shareSuccess ? t('plantDetail.shareSuccess') : t('plantDetail.sharePlant')}
+              </button>
               <button
                 onClick={() => setShowDeleteConfirm(true)}
                 className="w-full bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
@@ -852,14 +1057,14 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
       {/* Edit Schedule Modal */}
       {showEditSchedule && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
-          <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full border-2 border-emerald-200 animate-slideUp">
-            <div className="flex items-center mb-6">
-              <div className="w-14 h-14 bg-gradient-to-br from-blue-100 to-cyan-100 rounded-2xl flex items-center justify-center mr-4">
+          <div className="bg-white rounded-3xl shadow-2xl p-6 max-w-md w-full border-2 border-emerald-200 animate-slideUp overflow-y-auto max-h-[85vh]">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="w-14 h-14 bg-gradient-to-br from-blue-100 to-cyan-100 rounded-2xl flex items-center justify-center flex-shrink-0">
                 <span className="text-3xl">📅</span>
               </div>
               <div>
                 <h3 className="text-xl font-bold text-gray-900">{t('plantDetail.editWateringSchedule')}</h3>
-                <p className="text-sm text-gray-600 mt-1">{t('plantDetail.forPlant', { plantName: plant?.name })}</p>
+                <p className="text-sm text-gray-600 mt-1">{t('plantDetail.forPlant', { plantName: plant ? getLocalizedPlantName(plant) : '' })}</p>
               </div>
             </div>
 
@@ -925,7 +1130,7 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
               </p>
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex gap-3 sticky bottom-0 bg-white pt-3 pb-1">
               <button
                 onClick={() => setShowEditSchedule(false)}
                 disabled={updatingSchedule}
@@ -949,6 +1154,94 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
                 ) : (
                   t('plantDetail.saveSchedule')
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Fertilizing Schedule Modal */}
+      {showEditFertilizingSchedule && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
+          <div className="bg-white rounded-3xl shadow-2xl p-6 max-w-md w-full border-2 border-green-200 animate-slideUp overflow-y-auto max-h-[85vh]">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="w-14 h-14 bg-gradient-to-br from-green-100 to-emerald-100 rounded-2xl flex items-center justify-center flex-shrink-0">
+                <span className="text-3xl">🌱</span>
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">{t('plantDetail.editFertilizingSchedule')}</h3>
+                <p className="text-sm text-gray-600 mt-1">{t('plantDetail.forPlant', { plantName: plant ? getLocalizedPlantName(plant) : '' })}</p>
+              </div>
+            </div>
+            <div className="mb-6">
+              <label className="block text-sm font-semibold text-gray-700 mb-3">{t('plantDetail.fertilizingIntervalDays')}</label>
+              <input type="number" min="1" max="365" value={newFertilizingInterval}
+                onChange={e => setNewFertilizingInterval(parseInt(e.target.value) || 1)}
+                className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-lg font-semibold" />
+            </div>
+            <div className="mb-6">
+              <p className="text-sm font-semibold text-gray-700 mb-2">{t('plantDetail.quickOptions')}</p>
+              <div className="flex flex-wrap gap-2">
+                {[14, 21, 30, 45, 60, 90].map(d => (
+                  <button key={d} onClick={() => setNewFertilizingInterval(d)}
+                    className={`px-4 py-2 text-sm rounded-xl font-semibold transition-all ${newFertilizingInterval === d ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md' : 'bg-white border-2 border-gray-200 text-gray-700 hover:border-emerald-300'}`}>
+                    {d}d
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex gap-3 sticky bottom-0 bg-white pt-3 pb-1">
+              <button onClick={() => setShowEditFertilizingSchedule(false)} disabled={updatingSchedule}
+                className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-3 px-6 rounded-xl transition-all disabled:opacity-50 border-2 border-gray-200">
+                {t('plantDetail.cancel')}
+              </button>
+              <button onClick={handleSaveFertilizingSchedule} disabled={updatingSchedule || newFertilizingInterval < 1}
+                className="flex-1 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-bold py-3 px-6 rounded-xl transition-all disabled:opacity-50 shadow-lg">
+                {updatingSchedule ? t('plantDetail.saving') : t('plantDetail.saveSchedule')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Tilling Schedule Modal */}
+      {showEditTillingSchedule && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
+          <div className="bg-white rounded-3xl shadow-2xl p-6 max-w-md w-full border-2 border-teal-200 animate-slideUp overflow-y-auto max-h-[85vh]">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="w-14 h-14 bg-gradient-to-br from-teal-100 to-cyan-100 rounded-2xl flex items-center justify-center flex-shrink-0">
+                <span className="text-3xl">🪴</span>
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">{t('plantDetail.editTillingSchedule')}</h3>
+                <p className="text-sm text-gray-600 mt-1">{t('plantDetail.forPlant', { plantName: plant ? getLocalizedPlantName(plant) : '' })}</p>
+              </div>
+            </div>
+            <div className="mb-6">
+              <label className="block text-sm font-semibold text-gray-700 mb-3">{t('plantDetail.tillingIntervalDays')}</label>
+              <input type="number" min="1" max="365" value={newTillingInterval}
+                onChange={e => setNewTillingInterval(parseInt(e.target.value) || 1)}
+                className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-lg font-semibold" />
+            </div>
+            <div className="mb-6">
+              <p className="text-sm font-semibold text-gray-700 mb-2">{t('plantDetail.quickOptions')}</p>
+              <div className="flex flex-wrap gap-2">
+                {[30, 45, 60, 90, 120, 180].map(d => (
+                  <button key={d} onClick={() => setNewTillingInterval(d)}
+                    className={`px-4 py-2 text-sm rounded-xl font-semibold transition-all ${newTillingInterval === d ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md' : 'bg-white border-2 border-gray-200 text-gray-700 hover:border-emerald-300'}`}>
+                    {d}d
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex gap-3 sticky bottom-0 bg-white pt-3 pb-1">
+              <button onClick={() => setShowEditTillingSchedule(false)} disabled={updatingSchedule}
+                className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-3 px-6 rounded-xl transition-all disabled:opacity-50 border-2 border-gray-200">
+                {t('plantDetail.cancel')}
+              </button>
+              <button onClick={handleSaveTillingSchedule} disabled={updatingSchedule || newTillingInterval < 1}
+                className="flex-1 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-bold py-3 px-6 rounded-xl transition-all disabled:opacity-50 shadow-lg">
+                {updatingSchedule ? t('plantDetail.saving') : t('plantDetail.saveSchedule')}
               </button>
             </div>
           </div>
