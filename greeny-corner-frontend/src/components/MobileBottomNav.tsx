@@ -25,6 +25,24 @@ export default function MobileBottomNav() {
     read: boolean;
   }>>([]);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const navRef = useRef<HTMLElement>(null);
+
+  // Keep nav pinned to the actual visible viewport bottom on iOS Safari
+  useEffect(() => {
+    const vv = (window as any).visualViewport as VisualViewport | undefined;
+    if (!vv) return;
+    const reposition = () => {
+      if (!navRef.current) return;
+      const offset = window.innerHeight - vv.height - vv.offsetTop;
+      navRef.current.style.transform = `translateY(${-offset}px)`;
+    };
+    vv.addEventListener('resize', reposition);
+    vv.addEventListener('scroll', reposition);
+    return () => {
+      vv.removeEventListener('resize', reposition);
+      vv.removeEventListener('scroll', reposition);
+    };
+  }, []);
 
   useEffect(() => {
     // Load notification history from localStorage
@@ -449,14 +467,11 @@ export default function MobileBottomNav() {
 
       {/* Fixed bottom navigation - only visible on mobile */}
       <nav
+        ref={navRef}
         className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50"
         style={{
           paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-          transform: 'translateZ(0)',
-          WebkitTransform: 'translateZ(0)',
           willChange: 'transform',
-          backfaceVisibility: 'hidden',
-          WebkitBackfaceVisibility: 'hidden',
         }}
       >
         <div className="grid grid-cols-4 h-16">
