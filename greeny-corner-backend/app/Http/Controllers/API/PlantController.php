@@ -23,7 +23,7 @@ class PlantController extends Controller
 
     public function index(Request $request)
     {
-        $plants = $request->user()->plants()->with('careSchedule')->get();
+        $plants = $request->user()->plants()->with('careSchedule')->latest()->get();
 
         // Get language preference from request header or query parameter
         $language = $request->input('language') ?? $request->header('Accept-Language', 'en');
@@ -110,8 +110,12 @@ class PlantController extends Controller
         // Get language preference from request (defaults to English)
         $language = $request->input('language', 'en');
         \Log::info('Plant identification language:', ['language' => $language]);
-        
+
+        $fullImagePath = Storage::disk('public')->path($imagePath);
         $plantData = $this->identifyPlant($imagePath, $language);
+
+        // Check plant health via Gemini (OpenRouter) when first adding
+        $healthResult = $this->checkHealthWithGemini($fullImagePath, $plantData['name'] ?? 'plant', $language);
 
         $plant = Plant::create([
             'user_id' => $request->user()->id,
@@ -120,12 +124,15 @@ class PlantController extends Controller
             'perenual_id' => $plantData['perenual_id'] ?? null,
             'image_url' => $imageUrl,
             'api_data' => $plantData,
+            'health_status' => $healthResult['health_status'] ?? null,
+            'health_notes' => $healthResult['health_notes'] ?? null,
+            'last_health_check' => now(),
             'added_at' => now(),
         ]);
 
         // Use AI-determined watering interval or default to 7 days
         $wateringInterval = $plantData['care_info']['watering_interval_days'] ?? 7;
-        
+
         CareSchedule::create([
             'plant_id' => $plant->id,
             'watering_interval_days' => $wateringInterval,
@@ -331,14 +338,20 @@ class PlantController extends Controller
             // Re-identify plant with current language (to get updated descriptions)
             \Log::info('Re-identifying plant with language: ' . $language);
             $plantData = $this->identifyPlant($fullImagePath, $language);
-            
-            // Update plant with new image and re-identified data
+
+            // Check plant health using Gemini vision
+            $healthResult = $this->checkHealthWithGemini($fullImagePath, $plant->name, $language);
+
+            // Update plant with new image, re-identified data, and health status
             $oldImagePath = $plant->image_url;
             $plant->update([
                 'image_url' => '/storage/' . $imagePath,
-                'name' => $plantData['name'] ?? $plant->name, // Update name if re-identified
+                'name' => $plantData['name'] ?? $plant->name,
                 'scientific_name' => $plantData['scientific_name'] ?? $plant->scientific_name,
-                'api_data' => $plantData, // Update all plant data with new language
+                'api_data' => $plantData,
+                'health_status' => $healthResult['health_status'] ?? null,
+                'health_notes' => $healthResult['health_notes'] ?? null,
+                'last_health_check' => now(),
             ]);
 
             // Delete old image if it exists and is different
@@ -367,6 +380,57 @@ class PlantController extends Controller
                 'error' => 'Please try again later'
             ], 500);
         }
+    }
+
+    /**
+     * Check plant health using existing plant image (no upload required)
+     * POST /api/plants/{id}/check-health
+     */
+    public function checkHealth(Request $request, $id)
+    {
+        $plant = $request->user()->plants()->findOrFail($id);
+        $language = $request->input('language', 'en');
+
+        // Resolve the image to a local file path
+        $imageUrl = $plant->getRawOriginal('image_url') ?? $plant->image_url;
+        $imagePath = null;
+
+        if (str_starts_with($imageUrl, '/storage/')) {
+            $relative = str_replace('/storage/', '', $imageUrl);
+            $imagePath = Storage::disk('public')->path($relative);
+        } elseif (str_starts_with($imageUrl, 'http')) {
+            // Download remote image to temp file
+            $tmpPath = tempnam(sys_get_temp_dir(), 'plant_health_') . '.jpg';
+            $imageContent = @file_get_contents($imageUrl);
+            if ($imageContent) {
+                file_put_contents($tmpPath, $imageContent);
+                $imagePath = $tmpPath;
+            }
+        }
+
+        if (!$imagePath || !file_exists($imagePath)) {
+            return response()->json(['success' => false, 'message' => 'Plant image not accessible'], 422);
+        }
+
+        $healthResult = $this->checkHealthWithGemini($imagePath, $plant->name, $language);
+
+        // Clean up temp file if created
+        if (isset($tmpPath) && file_exists($tmpPath)) {
+            unlink($tmpPath);
+        }
+
+        $plant->update([
+            'health_status'    => $healthResult['health_status'] ?? null,
+            'health_notes'     => $healthResult['health_notes'] ?? null,
+            'last_health_check' => now(),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'health_status'    => $healthResult['health_status'],
+            'health_notes'     => $healthResult['health_notes'],
+            'plant'            => $plant->fresh(),
+        ]);
     }
 
     public function identify(Request $request)
@@ -4266,8 +4330,8 @@ class PlantController extends Controller
         $apiKey = env('PLANTNET_API_KEY');
 
         if (!$apiKey) {
-            \Log::warning('PlantNet API key not configured');
-            return null;
+            \Log::warning('PlantNet API key not configured — falling back to Gemini');
+            return $this->identifyWithOpenRouterGemini($imagePath);
         }
 
         if (!file_exists($imagePath)) {
@@ -4294,6 +4358,12 @@ class PlantController extends Controller
             $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
             curl_close($curl);
 
+            // 429 = daily free limit hit → fall back to Gemini
+            if ($httpCode === 429 || $httpCode === 503) {
+                \Log::warning("PlantNet returned {$httpCode} — daily limit reached, falling back to Gemini OpenRouter");
+                return $this->identifyWithOpenRouterGemini($imagePath);
+            }
+
             if ($httpCode === 200 && $response) {
                 $data = json_decode($response, true);
 
@@ -4304,6 +4374,7 @@ class PlantController extends Controller
                         'name' => $topResult['species']['commonNames'][0] ?? $topResult['species']['scientificNameWithoutAuthor'],
                         'scientific_name' => $topResult['species']['scientificNameWithoutAuthor'],
                         'confidence' => $topResult['score'] ?? 0,
+                        'source' => 'plantnet',
                     ];
                 }
             }
@@ -4311,6 +4382,222 @@ class PlantController extends Controller
             return null;
         } catch (\Exception $e) {
             \Log::error('PlantNet API error: ' . $e->getMessage());
+            return $this->identifyWithOpenRouterGemini($imagePath);
+        }
+    }
+
+    /**
+     * Call OpenRouter API with automatic fallback to a secondary model on rate-limit (429).
+     */
+    private function callOpenRouterWithFallback(array $payload, string $apiKey, int $timeout = 20): ?array
+    {
+        $models = ['google/gemini-2.5-flash', 'google/gemini-flash-1.5', 'google/gemini-2.0-flash-lite:free'];
+
+        foreach ($models as $model) {
+            $payload['model'] = $model;
+            $encodedPayload = json_encode($payload);
+
+            $curl = curl_init();
+            curl_setopt_array($curl, [
+                CURLOPT_URL => 'https://openrouter.ai/api/v1/chat/completions',
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_POST => true,
+                CURLOPT_POSTFIELDS => $encodedPayload,
+                CURLOPT_HTTPHEADER => [
+                    'Authorization: Bearer ' . $apiKey,
+                    'Content-Type: application/json',
+                    'HTTP-Referer: https://greenycorner.ae',
+                    'X-Title: Greeny Corner',
+                ],
+                CURLOPT_TIMEOUT => $timeout,
+            ]);
+
+            $response = curl_exec($curl);
+            $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+            curl_close($curl);
+
+            // 429 = rate limit / quota exceeded — try next model
+            if ($httpCode === 429) {
+                \Log::warning("OpenRouter model {$model} rate limited, trying fallback.");
+                continue;
+            }
+
+            if ($httpCode === 200 && $response) {
+                $decoded = json_decode($response, true);
+                // Check for API-level rate limit inside the response body
+                if (isset($decoded['error']['code']) && $decoded['error']['code'] === 429) {
+                    \Log::warning("OpenRouter model {$model} quota error in body, trying fallback.");
+                    continue;
+                }
+                return $decoded;
+            }
+
+            // Other errors — don't retry with fallback
+            break;
+        }
+
+        return null;
+    }
+
+    /**
+     * Check plant health using Gemini vision via OpenRouter.
+     * Returns { health_status: healthy|sick|needs_care|dying, health_notes: string|null }
+     */
+    private function checkHealthWithGemini(string $imagePath, string $plantName, string $language = 'en'): array
+    {
+        $apiKey = env('OPENROUTER_API_KEY');
+        if (!$apiKey || !file_exists($imagePath)) {
+            return ['health_status' => null, 'health_notes' => null];
+        }
+
+        try {
+            $imageData = base64_encode(file_get_contents($imagePath));
+            $mimeType = 'image/jpeg';
+
+            // Request both languages in one call to avoid double API cost
+            $prompt = "Analyze this {$plantName} plant image for health. Respond ONLY with valid JSON, no markdown:\n{\"health_status\":\"healthy|sick|needs_care|dying\",\"health_notes_en\":\"brief description in English, or null if healthy\",\"health_notes_ar\":\"نفس الوصف باللغة العربية، أو null إذا كانت النبتة بصحة جيدة\"}";
+
+            $decoded = $this->callOpenRouterWithFallback([
+                'messages' => [[
+                    'role' => 'user',
+                    'content' => [
+                        ['type' => 'text', 'text' => $prompt],
+                        ['type' => 'image_url', 'image_url' => ['url' => "data:{$mimeType};base64,{$imageData}"]],
+                    ],
+                ]],
+                'max_tokens' => 250,
+                'temperature' => 0.1,
+            ], $apiKey);
+
+            $text = $decoded['choices'][0]['message']['content'] ?? '';
+            $text = preg_replace('/```json|```/', '', $text);
+            $result = json_decode(trim($text), true);
+
+            if (isset($result['health_status'])) {
+                $validStatuses = ['healthy', 'sick', 'needs_care', 'dying'];
+                if (!in_array($result['health_status'], $validStatuses)) {
+                    $result['health_status'] = 'needs_care';
+                }
+                // Store both languages as JSON so the app can pick the right one
+                $notesEn = $result['health_notes_en'] ?? $result['health_notes'] ?? null;
+                $notesAr = $result['health_notes_ar'] ?? $notesEn;
+                $healthNotes = json_encode(['en' => $notesEn, 'ar' => $notesAr]);
+                return [
+                    'health_status' => $result['health_status'],
+                    'health_notes' => $healthNotes,
+                ];
+            }
+        } catch (\Exception $e) {
+            \Log::warning('Health check with Gemini failed: ' . $e->getMessage());
+        }
+
+        return ['health_status' => null, 'health_notes' => null];
+    }
+
+    /**
+     * Get disease treatment tips via Gemini OpenRouter
+     * POST /api/plants/disease-treatment
+     * Body: { disease: string, plant_name: string, language: string }
+     */
+    public function getDiseaseTreatment(\Illuminate\Http\Request $request)
+    {
+        $disease = $request->input('disease');
+        $plantName = $request->input('plant_name', 'plant');
+        $language = $request->input('language', 'en');
+
+        if (!$disease) {
+            return response()->json(['success' => false, 'message' => 'Disease name required'], 422);
+        }
+
+        $cacheKey = 'treatment_' . md5($disease . '_' . $language);
+        $cached = \Cache::get($cacheKey);
+        if ($cached) {
+            return response()->json(['success' => true, 'data' => $cached, 'cached' => true]);
+        }
+
+        $apiKey = env('OPENROUTER_API_KEY');
+        if (!$apiKey) {
+            return response()->json(['success' => false, 'message' => 'AI service not configured'], 503);
+        }
+
+        $langInstruction = $language === 'ar' ? 'Respond in Arabic.' : 'Respond in English.';
+        $prompt = "{$langInstruction}\nA {$plantName} has been diagnosed with: {$disease}.\nProvide a concise treatment guide as JSON (no markdown):\n{\"cause\":\"...\",\"symptoms\":\"...\",\"treatment\":[\"step1\",\"step2\",\"step3\"],\"prevention\":\"...\",\"recovery_time\":\"...\",\"fertilizer_name\":\"specific fertilizer product name (e.g. NPK 20-20-20, Miracle-Gro)\",\"fertilizer_type\":\"fertilizer type and form (e.g. balanced liquid fertilizer, slow-release granules, organic compost)\",\"fertilizer_application\":\"step-by-step application method including dosage, frequency, and timing\"}";
+
+        try {
+            $data = $this->callOpenRouterWithFallback([
+                'messages' => [['role' => 'user', 'content' => $prompt]],
+                'max_tokens' => 600,
+                'temperature' => 0.2,
+            ], $apiKey);
+
+            if (!$data) {
+                return response()->json(['success' => false, 'message' => 'AI service error'], 502);
+            }
+
+            $text = $data['choices'][0]['message']['content'] ?? '';
+            $text = preg_replace('/^```json\s*|\s*```$/', '', trim($text));
+            $parsed = json_decode($text, true);
+
+            if (!$parsed) {
+                return response()->json(['success' => false, 'message' => 'Could not parse treatment data'], 500);
+            }
+
+            \Cache::put($cacheKey, $parsed, 86400); // cache 24h
+            return response()->json(['success' => true, 'data' => $parsed, 'cached' => false]);
+        } catch (\Exception $e) {
+            \Log::error('Disease treatment error: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Failed to get treatment info'], 500);
+        }
+    }
+
+    private function identifyWithOpenRouterGemini($imagePath): ?array
+    {
+        $apiKey = env('OPENROUTER_API_KEY');
+        if (!$apiKey || !file_exists($imagePath)) {
+            return null;
+        }
+
+        try {
+            $imageData = base64_encode(file_get_contents($imagePath));
+            $mimeType = mime_content_type($imagePath) ?: 'image/jpeg';
+
+            $prompt = 'You are a botanist. Identify this plant and respond with ONLY valid JSON (no markdown): {"common_name": "...", "scientific_name": "...", "confidence": 0.0-1.0}. If you cannot identify it, use "Unknown plant" for common_name and 0.3 for confidence.';
+
+            $data = $this->callOpenRouterWithFallback([
+                'messages' => [[
+                    'role' => 'user',
+                    'content' => [
+                        ['type' => 'image_url', 'image_url' => ['url' => "data:{$mimeType};base64,{$imageData}"]],
+                        ['type' => 'text', 'text' => $prompt],
+                    ],
+                ]],
+                'max_tokens' => 100,
+                'temperature' => 0.1,
+            ], $apiKey);
+
+            if (!$data) {
+                \Log::error('OpenRouter Gemini: all models failed or rate limited.');
+                return null;
+            }
+
+            $text = $data['choices'][0]['message']['content'] ?? '';
+            $text = preg_replace('/^```json\s*|\s*```$/', '', trim($text));
+            $parsed = json_decode($text, true);
+
+            if (!$parsed || !isset($parsed['common_name'])) {
+                return null;
+            }
+
+            \Log::info('Gemini OpenRouter fallback identified: ' . $parsed['common_name']);
+
+            return [
+                'name' => $parsed['common_name'],
+                'scientific_name' => $parsed['scientific_name'] ?? $parsed['common_name'],
+                'confidence' => (float) ($parsed['confidence'] ?? 0.7),
+                'source' => 'gemini_fallback',
+            ];
+        } catch (\Exception $e) {
+            \Log::error('OpenRouter Gemini fallback error: ' . $e->getMessage());
             return null;
         }
     }
