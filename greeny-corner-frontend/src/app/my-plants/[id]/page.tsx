@@ -107,12 +107,14 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
     return `${n} يوم`;
   };
 
+  const hasArabic = (s?: string) => s ? /[؀-ۿ]/.test(s) : false;
   const getLocalizedPlantName = (p: Plant) => {
     if (i18n.language === 'ar') {
       return p.api_data?.name_ar || p.api_data?.arabic_name || translatedPlantName || p.name;
     }
-    // English: api_data.name is always the original English name from AI identification
-    return p.api_data?.name || p.name;
+    // English: prefer name_en, then name if it's not Arabic, then scientific name, then raw name
+    const candidate = p.api_data?.name_en || (!hasArabic(p.api_data?.name) ? p.api_data?.name : null);
+    return candidate || p.scientific_name || p.api_data?.scientific_name || p.name;
   };
 
   const fetchPlant = async () => {
@@ -760,21 +762,23 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
                     )}
                   </div>
                 </div>
-                <button
-                  onClick={handleCheckHealth}
-                  disabled={checkingHealth}
-                  className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-all shadow-md"
-                >
-                  {checkingHealth ? (
-                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                  ) : '🔍'}
-                  {checkingHealth
-                    ? (i18n.language === 'ar' ? 'جاري الفحص...' : 'Checking...')
-                    : (plant.health_status ? (i18n.language === 'ar' ? 'إعادة الفحص' : 'Re-check') : (i18n.language === 'ar' ? 'فحص الآن' : 'Check Now'))}
-                </button>
+                {!plant.health_status && (
+                  <button
+                    onClick={handleCheckHealth}
+                    disabled={checkingHealth}
+                    className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-all shadow-md"
+                  >
+                    {checkingHealth ? (
+                      <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    ) : '🔍'}
+                    {checkingHealth
+                      ? (i18n.language === 'ar' ? 'جاري الفحص...' : 'Checking...')
+                      : (i18n.language === 'ar' ? 'فحص الآن' : 'Check Now')}
+                  </button>
+                )}
               </div>
 
               {plant.last_health_check && (
