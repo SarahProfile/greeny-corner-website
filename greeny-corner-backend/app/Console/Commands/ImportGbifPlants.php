@@ -31,7 +31,7 @@ class ImportGbifPlants extends Command
 
             try {
                 $response = Http::timeout(30)->get('https://api.gbif.org/v1/species/search', [
-                    'kingdom'  => 'PLANTAE',
+                    'highertaxonKey' => 6,
                     'rank'     => 'SPECIES',
                     'status'   => 'ACCEPTED',
                     'nameType' => 'SCIENTIFIC',
