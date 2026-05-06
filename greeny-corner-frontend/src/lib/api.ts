@@ -247,6 +247,111 @@ export const plantsAPI = {
   },
 };
 
+// ─── Plant Encyclopedia (public, no auth) ─────────────────────────────────────
+
+export interface EncyclopediaPlant {
+  id: number;
+  slug: string;
+  name: string;
+  scientific_name?: string;
+  family?: string;
+  genus?: string;
+  origin?: string;
+  description?: string;
+  description_ar?: string;
+  common_names?: string[];
+  care_info?: {
+    watering_interval_days?: number;
+    watering?: string;
+    light?: string;
+    humidity?: string;
+    temperature?: string;
+    care_tips?: string;
+    difficulty?: string;
+    soil?: string;
+    pruning?: string;
+  };
+  growth_info?: {
+    growth_rate?: string;
+    mature_height?: string;
+    mature_size?: string;
+    spread?: string;
+    growth_habit?: string;
+    indoor?: boolean;
+    cycle?: string;
+    type?: string;
+  };
+  benefits?: string[];
+  interesting_facts?: string[];
+  toxicity?: string;
+  images?: string[];
+  image?: string;
+  wikipedia_url?: string;
+  sources?: string[];
+  is_featured?: boolean;
+  view_count?: number;
+  perenual_id?: number;
+  gbif_id?: number;
+}
+
+export interface EncyclopediaListResponse {
+  data: EncyclopediaPlant[];
+  total: number;
+  current_page: number;
+  last_page: number;
+}
+
+const ENC_BASE = `${API_BASE_URL}/encyclopedia`;
+
+export const encyclopediaAPI = {
+  getPlants: async (params?: {
+    page?: number;
+    limit?: number;
+    q?: string;
+    family?: string;
+    featured?: boolean;
+  }): Promise<EncyclopediaListResponse> => {
+    const qs = new URLSearchParams(
+      Object.entries(params ?? {})
+        .filter(([, v]) => v !== undefined && v !== null && v !== '')
+        .map(([k, v]) => [k, String(v)])
+    ).toString();
+    const res = await fetch(`${ENC_BASE}/plants${qs ? '?' + qs : ''}`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Failed to fetch plants');
+    return res.json();
+  },
+
+  getPlant: async (slug: string): Promise<EncyclopediaPlant> => {
+    const res = await fetch(`${ENC_BASE}/plants/${slug}`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Plant not found');
+    return res.json();
+  },
+
+  search: async (q: string): Promise<EncyclopediaPlant[]> => {
+    const res = await fetch(`${ENC_BASE}/search?q=${encodeURIComponent(q)}`, { cache: 'no-store' });
+    if (!res.ok) return [];
+    return res.json();
+  },
+
+  getFeatured: async (): Promise<EncyclopediaPlant[]> => {
+    const res = await fetch(`${ENC_BASE}/featured`, { next: { revalidate: 3600 } } as RequestInit);
+    if (!res.ok) return [];
+    return res.json();
+  },
+
+  getFamilies: async (): Promise<string[]> => {
+    const res = await fetch(`${ENC_BASE}/families`, { next: { revalidate: 86400 } } as RequestInit);
+    if (!res.ok) return [];
+    return res.json();
+  },
+
+  getSimilar: async (slug: string): Promise<EncyclopediaPlant[]> => {
+    const res = await fetch(`${ENC_BASE}/plants/${slug}/similar`, { cache: 'no-store' });
+    if (!res.ok) return [];
+    return res.json();
+  },
+};
+
 export const helpMessageAPI = {
   submitMessage: async (data: { category: string; message: string }) => {
     const response = await api.post('/help-messages', data);
