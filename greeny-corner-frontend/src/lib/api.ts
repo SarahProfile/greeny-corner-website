@@ -48,6 +48,7 @@ export interface Plant {
   image_url: string;
   api_data: {
     name: string;
+    name_en?: string;
     name_ar?: string;
     arabic_name?: string;
     confidence: number;
