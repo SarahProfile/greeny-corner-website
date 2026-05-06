@@ -9,6 +9,7 @@ import Header from '@/components/Header';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import { useTranslation } from 'react-i18next';
 import { translateText } from '@/lib/translateText';
+import { notificationService } from '@/lib/notifications';
 
 export default function MyPlantsPage() {
   const [plants, setPlants] = useState<Plant[]>([]);
@@ -21,14 +22,14 @@ export default function MyPlantsPage() {
   const router = useRouter();
   const { t, i18n } = useTranslation();
 
+  const hasArabicChars = (s?: string) => s ? /[؀-ۿ]/.test(s) : false;
+
   const getLocalizedPlantName = (plant: Plant) => {
     if (i18n.language === 'ar') {
       return translatedNames[plant.id] || plant.api_data?.name_ar || plant.api_data?.arabic_name || plant.name;
     }
-    // English: only use translated name if it's not Arabic (i.e. back-translated to English)
-    const translated = translatedNames[plant.id];
-    if (translated && !/[\u0600-\u06FF]/.test(translated)) return translated;
-    return plant.name;
+    const candidate = plant.api_data?.name_en || (!hasArabicChars(plant.api_data?.name) ? plant.api_data?.name : null);
+    return candidate || plant.scientific_name || plant.api_data?.scientific_name || plant.name;
   };
 
   useEffect(() => {
@@ -70,6 +71,10 @@ export default function MyPlantsPage() {
       setPlants(data);
       setLoading(false);
       translatePlantNames(data);
+
+      // Check for overdue plants and schedule upcoming notifications
+      notificationService.checkOverduePlants(data);
+      notificationService.scheduleAllPlantNotifications(data);
     } catch (err: any) {
       setError(err.response?.data?.message || t('plants.failedToLoad'));
       setLoading(false);
@@ -89,13 +94,8 @@ export default function MyPlantsPage() {
             const translated = await translateText(plant.name, 'ar');
             if (translated !== plant.name) updates[plant.id] = translated;
           }
-        } else {
-          // English page: translate Arabic names back to English
-          if (hasArabicChars) {
-            const translated = await translateText(plant.name, 'en', 'ar');
-            if (translated !== plant.name) updates[plant.id] = translated;
-          }
         }
+        // No back-translation for English — api_data.name always contains the English name
       })
     );
     if (Object.keys(updates).length > 0) {
