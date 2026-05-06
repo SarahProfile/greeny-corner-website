@@ -1,4 +1,5 @@
 import { Metadata } from 'next';
+import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
@@ -73,6 +74,20 @@ async function fetchPlant(slug: string): Promise<EncyclopediaPlant | null> {
   }
 }
 
+async function fetchWikipediaDescription(name: string): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(name.replace(/ /g, '_'))}`,
+      { next: { revalidate: 86400 }, headers: { 'User-Agent': 'GreenyCornerBot/1.0' } }
+    );
+    if (!res.ok) return null;
+    const d = await res.json();
+    return d.extract && d.extract.length > 50 ? d.extract : null;
+  } catch {
+    return null;
+  }
+}
+
 async function fetchSimilar(slug: string): Promise<SimilarPlant[]> {
   try {
     const res = await fetch(`${API}/encyclopedia/plants/${slug}/similar`, { next: { revalidate: 86400 } });
@@ -111,8 +126,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     ? `${plant.name} (${plant.scientific_name}) - Care Guide | Greeny Corner`
     : `${plant.name} - Plant Care Guide | Greeny Corner`;
 
-  const description = plant.description
-    ? plant.description.slice(0, 160).replace(/\s+/g, ' ').trim() + '...'
+  const desc = plant.description || await fetchWikipediaDescription(plant.name);
+  const description = desc
+    ? desc.slice(0, 160).replace(/\s+/g, ' ').trim() + '...'
     : `Learn how to care for ${plant.name}. Watering schedule, light requirements, and expert growing tips.`;
 
   const image = plant.images?.[0];
@@ -158,13 +174,16 @@ export default async function PlantDetailPage({ params }: { params: Promise<{ sl
 
   if (!plant) notFound();
 
+  // If no description stored, try fetching live from Wikipedia
+  const description = plant.description || await fetchWikipediaDescription(plant.name);
+
   const mainImage = plant.images?.[0];
 
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Article',
     headline: `${plant.name} - Plant Care Guide`,
-    description: plant.description?.slice(0, 200),
+    description: description?.slice(0, 200),
     image: mainImage,
     author: { '@type': 'Organization', name: 'Greeny Corner', url: 'https://greenycorner.ae' },
     publisher: { '@type': 'Organization', name: 'Greeny Corner', url: 'https://greenycorner.ae', logo: 'https://greenycorner.ae/logo.png' },
@@ -189,8 +208,8 @@ export default async function PlantDetailPage({ params }: { params: Promise<{ sl
       {/* Header */}
       <header className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 text-emerald-700 font-bold text-xl">
-            🌿 Greeny Corner
+          <Link href="/" className="flex items-center gap-2">
+            <Image src="/greeny-logo.svg" alt="Greeny Corner" width={120} height={36} className="h-9 w-auto" />
           </Link>
           <nav className="flex items-center gap-4 text-sm">
             <Link href="/plants" className="text-emerald-600 font-semibold">Plant Encyclopedia</Link>
@@ -324,11 +343,11 @@ export default async function PlantDetailPage({ params }: { params: Promise<{ sl
         </div>
 
         {/* Description */}
-        {plant.description && (
+        {description && (
           <section className="bg-white rounded-3xl shadow-xl p-8 mb-8 border border-gray-100">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">📋 About {plant.name}</h2>
             <div className="prose prose-gray max-w-none text-gray-700 leading-relaxed">
-              {plant.description.split('\n').filter(Boolean).map((para, i) => (
+              {description.split('\n').filter(Boolean).map((para, i) => (
                 <p key={i} className="mb-3">{para}</p>
               ))}
             </div>

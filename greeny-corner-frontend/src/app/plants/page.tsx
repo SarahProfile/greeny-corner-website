@@ -1,4 +1,5 @@
 import { Metadata } from 'next';
+import Image from 'next/image';
 import Link from 'next/link';
 import { Suspense } from 'react';
 import PlantSearch from './PlantSearch';
@@ -159,8 +160,8 @@ export default async function PlantDirectoryPage({
       {/* Header */}
       <header className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 text-emerald-700 font-bold text-xl">
-            🌿 Greeny Corner
+          <Link href="/" className="flex items-center gap-2">
+            <Image src="/greeny-logo.svg" alt="Greeny Corner" width={120} height={36} className="h-9 w-auto" />
           </Link>
           <nav className="flex items-center gap-4 text-sm">
             <Link href="/plants" className="text-emerald-600 font-semibold">Plant Encyclopedia</Link>
