@@ -25,6 +25,10 @@ class Plant extends Model
         'gemini_fetched_at',
         'diseases_info',
         'nutrition_info',
+        'health_status',
+        'health_notes',
+        'last_health_check',
+        'fertilizer_info',
     ];
 
     protected $casts = [
@@ -36,6 +40,7 @@ class Plant extends Model
         'added_at' => 'datetime',
         'gemini_fetched_at' => 'datetime',
         'gemini_data_fetched' => 'boolean',
+        'last_health_check' => 'datetime',
     ];
 
     public function user(): BelongsTo

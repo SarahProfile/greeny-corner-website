@@ -4509,7 +4509,8 @@ class PlantController extends Controller
             return response()->json(['success' => false, 'message' => 'Disease name required'], 422);
         }
 
-        $cacheKey = 'treatment_' . md5($disease . '_' . $language);
+        // Cache key is language-independent since we return both languages
+        $cacheKey = 'treatment_v2_' . md5($disease);
         $cached = \Cache::get($cacheKey);
         if ($cached) {
             return response()->json(['success' => true, 'data' => $cached, 'cached' => true]);
@@ -4520,8 +4521,83 @@ class PlantController extends Controller
             return response()->json(['success' => false, 'message' => 'AI service not configured'], 503);
         }
 
-        $langInstruction = $language === 'ar' ? 'Respond in Arabic.' : 'Respond in English.';
-        $prompt = "{$langInstruction}\nA {$plantName} has been diagnosed with: {$disease}.\nProvide a concise treatment guide as JSON (no markdown):\n{\"cause\":\"...\",\"symptoms\":\"...\",\"treatment\":[\"step1\",\"step2\",\"step3\"],\"prevention\":\"...\",\"recovery_time\":\"...\",\"fertilizer_name\":\"specific fertilizer product name (e.g. NPK 20-20-20, Miracle-Gro)\",\"fertilizer_type\":\"fertilizer type and form (e.g. balanced liquid fertilizer, slow-release granules, organic compost)\",\"fertilizer_application\":\"step-by-step application method including dosage, frequency, and timing\"}";
+        $prompt = "A {$plantName} has been diagnosed with: {$disease}.\nProvide a bilingual treatment guide as JSON (no markdown). ALL fields must be filled in both English and Arabic:\n{\"cause_en\":\"cause in English\",\"cause_ar\":\"السبب بالعربية\",\"symptoms_en\":\"symptoms in English\",\"symptoms_ar\":\"الأعراض بالعربية\",\"treatment_en\":[\"step 1\",\"step 2\",\"step 3\"],\"treatment_ar\":[\"الخطوة 1\",\"الخطوة 2\",\"الخطوة 3\"],\"prevention_en\":\"prevention in English\",\"prevention_ar\":\"الوقاية بالعربية\",\"recovery_time\":\"e.g. 2-4 weeks\",\"recovery_time_ar\":\"مثال: 2-4 أسابيع\",\"fertilizer_name\":\"specific product name\",\"fertilizer_name_ar\":\"اسم المنتج بالعربية\",\"fertilizer_type\":\"type in English\",\"fertilizer_type_ar\":\"النوع بالعربية\",\"fertilizer_application_en\":\"application steps in English\",\"fertilizer_application_ar\":\"خطوات التطبيق بالعربية\"}";
+
+        try {
+            $data = $this->callOpenRouterWithFallback([
+                'messages' => [['role' => 'user', 'content' => $prompt]],
+                'max_tokens' => 900,
+                'temperature' => 0.2,
+            ], $apiKey);
+
+            if (!$data) {
+                return response()->json(['success' => false, 'message' => 'AI service error'], 502);
+            }
+
+            $text = $data['choices'][0]['message']['content'] ?? '';
+            $parsed = $this->extractJsonFromText($text);
+
+            if (!$parsed) {
+                \Log::error('Treatment parse failed. Raw: ' . substr($text, 0, 500));
+                return response()->json(['success' => false, 'message' => 'Could not parse treatment data'], 500);
+            }
+
+            \Cache::put($cacheKey, $parsed, 86400); // cache 24h
+            return response()->json(['success' => true, 'data' => $parsed, 'cached' => false]);
+        } catch (\Exception $e) {
+            \Log::error('Disease treatment error: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Failed to get treatment info'], 500);
+        }
+    }
+
+    /**
+     * Extract a JSON object from an AI response that may contain surrounding text or markdown.
+     */
+    private function extractJsonFromText(string $text): ?array
+    {
+        // Strip markdown code fences
+        $text = preg_replace('/```json\s*/i', '', $text);
+        $text = preg_replace('/```\s*/', '', $text);
+        $text = trim($text);
+
+        // Try direct parse first
+        $parsed = json_decode($text, true);
+        if (is_array($parsed)) return $parsed;
+
+        // Find the outermost {...} block — handles extra prose before/after JSON
+        if (preg_match('/\{[\s\S]*\}/u', $text, $m)) {
+            $parsed = json_decode($m[0], true);
+            if (is_array($parsed)) return $parsed;
+        }
+
+        return null;
+    }
+
+    /**
+     * Get or generate fertilizer recommendation for a specific plant
+     * POST /api/plants/{id}/fertilizer-info
+     */
+    public function getFertilizerInfo(\Illuminate\Http\Request $request, $id)
+    {
+        $plant = $request->user()->plants()->findOrFail($id);
+
+        // Return cached if already stored on plant and has bilingual fields
+        if ($plant->fertilizer_info) {
+            $cached = json_decode($plant->fertilizer_info, true);
+            if (isset($cached['name_ar'])) {
+                return response()->json(['success' => true, 'data' => $cached, 'cached' => true]);
+            }
+        }
+
+        $apiKey = env('OPENROUTER_API_KEY');
+        if (!$apiKey) {
+            return response()->json(['success' => false, 'message' => 'AI service not configured'], 503);
+        }
+
+        $plantName = $plant->name;
+        $scientificName = $plant->scientific_name ? " ({$plant->scientific_name})" : '';
+
+        $prompt = "For a {$plantName}{$scientificName} plant, provide a specific fertilizer recommendation as bilingual JSON (no markdown):\n{\"name\":\"specific fertilizer product name in English (e.g. Miracle-Gro All Purpose, NPK 20-20-20)\",\"name_ar\":\"اسم السماد المحدد بالعربية\",\"type\":\"fertilizer type in English (e.g. balanced liquid fertilizer, slow-release granules)\",\"type_ar\":\"نوع السماد بالعربية\",\"frequency\":\"how often to fertilize in English (e.g. every 2 weeks during growing season)\",\"frequency_ar\":\"تكرار التسميد بالعربية\",\"application_en\":\"3-4 step application method in English including amount and timing\",\"application_ar\":\"طريقة التطبيق بالعربية في 3-4 خطوات\",\"season\":\"best season in English\",\"season_ar\":\"أفضل موسم بالعربية\"}";
 
         try {
             $data = $this->callOpenRouterWithFallback([
@@ -4535,18 +4611,20 @@ class PlantController extends Controller
             }
 
             $text = $data['choices'][0]['message']['content'] ?? '';
-            $text = preg_replace('/^```json\s*|\s*```$/', '', trim($text));
-            $parsed = json_decode($text, true);
+            $parsed = $this->extractJsonFromText($text);
 
             if (!$parsed) {
-                return response()->json(['success' => false, 'message' => 'Could not parse treatment data'], 500);
+                \Log::error('Fertilizer parse failed. Raw: ' . substr($text, 0, 500));
+                return response()->json(['success' => false, 'message' => 'Could not parse fertilizer data'], 500);
             }
 
-            \Cache::put($cacheKey, $parsed, 86400); // cache 24h
+            // Store on plant so we don't re-generate
+            $plant->update(['fertilizer_info' => json_encode($parsed)]);
+
             return response()->json(['success' => true, 'data' => $parsed, 'cached' => false]);
         } catch (\Exception $e) {
-            \Log::error('Disease treatment error: ' . $e->getMessage());
-            return response()->json(['success' => false, 'message' => 'Failed to get treatment info'], 500);
+            \Log::error('Fertilizer info error: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Failed to get fertilizer info'], 500);
         }
     }
 

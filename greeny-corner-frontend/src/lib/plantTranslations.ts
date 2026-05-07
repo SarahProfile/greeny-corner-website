@@ -53,6 +53,10 @@ export const plantValueTranslations: Record<string, Record<string, string>> = {
     ar: 'القلقاسية',
     en: 'Araceae'
   },
+  'Araliaceae': {
+    ar: 'الأراليية',
+    en: 'Araliaceae'
+  },
   'Asparagaceae': {
     ar: 'الهليونية',
     en: 'Asparagaceae'

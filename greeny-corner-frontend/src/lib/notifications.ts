@@ -217,25 +217,84 @@ export class NotificationService {
 
   checkOverduePlants(plants: any[]): void {
     const now = new Date();
-    
+
+    // Build a set of "plant-careType" pairs that are currently overdue
+    const currentlyOverdue = new Set<string>();
+
     plants.forEach(plant => {
-      if (plant.care_schedule) {
-        // Check overdue watering
-        if (plant.care_schedule.next_watering_date && plant.care_schedule.watering_notifications_enabled) {
-          this.checkOverdueCare(plant, 'watering', new Date(plant.care_schedule.next_watering_date), now, '💧', 'water');
-        }
-        
-        // Check overdue fertilizing
-        if (plant.care_schedule.next_fertilizing_date && plant.care_schedule.fertilizing_notifications_enabled) {
-          this.checkOverdueCare(plant, 'fertilizing', new Date(plant.care_schedule.next_fertilizing_date), now, '🌱', 'fertilize');
-        }
-        
-        // Check overdue tilling
-        if (plant.care_schedule.next_tilling_date && plant.care_schedule.tilling_notifications_enabled) {
-          this.checkOverdueCare(plant, 'tilling', new Date(plant.care_schedule.next_tilling_date), now, '🪴', 'till');
-        }
+      if (!plant.care_schedule) return;
+
+      const wateringEnabled = plant.care_schedule.watering_notifications_enabled !== false;
+      const fertilizingEnabled = plant.care_schedule.fertilizing_notifications_enabled !== false;
+      const tillingEnabled = plant.care_schedule.tilling_notifications_enabled !== false;
+
+      if (plant.care_schedule.next_watering_date && wateringEnabled) {
+        const d = new Date(plant.care_schedule.next_watering_date);
+        if (d < now) currentlyOverdue.add(`${plant.id}-watering`);
+      }
+      if (plant.care_schedule.next_fertilizing_date && fertilizingEnabled) {
+        const d = new Date(plant.care_schedule.next_fertilizing_date);
+        if (d < now) currentlyOverdue.add(`${plant.id}-fertilizing`);
+      }
+      if (plant.care_schedule.next_tilling_date && tillingEnabled) {
+        const d = new Date(plant.care_schedule.next_tilling_date);
+        if (d < now) currentlyOverdue.add(`${plant.id}-tilling`);
       }
     });
+
+    // Remove stale overdue/care notifications for plants no longer needing care
+    this.pruneStaleNotifications(currentlyOverdue);
+
+    // Add fresh notifications for currently overdue plants
+    plants.forEach(plant => {
+      if (!plant.care_schedule) return;
+
+      const wateringEnabled = plant.care_schedule.watering_notifications_enabled !== false;
+      const fertilizingEnabled = plant.care_schedule.fertilizing_notifications_enabled !== false;
+      const tillingEnabled = plant.care_schedule.tilling_notifications_enabled !== false;
+
+      if (plant.care_schedule.next_watering_date && wateringEnabled && currentlyOverdue.has(`${plant.id}-watering`)) {
+        const d = new Date(plant.care_schedule.next_watering_date);
+        this.checkOverdueCare(plant, 'watering', d, now, '💧', 'water');
+      }
+      if (plant.care_schedule.next_fertilizing_date && fertilizingEnabled && currentlyOverdue.has(`${plant.id}-fertilizing`)) {
+        const d = new Date(plant.care_schedule.next_fertilizing_date);
+        this.checkOverdueCare(plant, 'fertilizing', d, now, '🌱', 'fertilize');
+      }
+      if (plant.care_schedule.next_tilling_date && tillingEnabled && currentlyOverdue.has(`${plant.id}-tilling`)) {
+        const d = new Date(plant.care_schedule.next_tilling_date);
+        this.checkOverdueCare(plant, 'tilling', d, now, '🪴', 'till');
+      }
+    });
+  }
+
+  // Remove notifications from history for plant+careType combos that are no longer overdue
+  private pruneStaleNotifications(currentlyOverdue: Set<string>): void {
+    if (typeof window === 'undefined') return;
+    try {
+      const stored = localStorage.getItem('notification_history');
+      if (!stored) return;
+      const notifications = JSON.parse(stored);
+      const careKeys = ['plants.overdueTitle', 'plants.wateringTitle', 'plants.fertilizingTitle', 'plants.tillingTitle'];
+      const careTypeMap: Record<string, string> = {
+        'plants.wateringTitle': 'watering',
+        'plants.fertilizingTitle': 'fertilizing',
+        'plants.tillingTitle': 'tilling',
+        'plants.overdueTitle': '', // uses data.careType
+      };
+
+      const filtered = notifications.filter((n: any) => {
+        if (!careKeys.includes(n.titleKey)) return true; // keep non-care notifications
+        const plantId = n.data?.plantId;
+        if (!plantId) return true; // can't determine plant — keep
+        let careType = careTypeMap[n.titleKey] || n.data?.careType || '';
+        return currentlyOverdue.has(`${plantId}-${careType}`);
+      });
+
+      localStorage.setItem('notification_history', JSON.stringify(filtered));
+    } catch (e) {
+      console.error('Failed to prune stale notifications:', e);
+    }
   }
 
   private checkOverdueCare(plant: any, careType: string, careDate: Date, now: Date, emoji: string, action: string): void {
@@ -268,22 +327,30 @@ export class NotificationService {
   scheduleAllPlantNotifications(plants: any[]): void {
     plants.forEach(plant => {
       if (plant.care_schedule) {
-        // Schedule watering notifications
-        if (plant.care_schedule.next_watering_date && plant.care_schedule.watering_notifications_enabled) {
+        const wateringEnabled = plant.care_schedule.watering_notifications_enabled !== false;
+        const fertilizingEnabled = plant.care_schedule.fertilizing_notifications_enabled !== false;
+        const tillingEnabled = plant.care_schedule.tilling_notifications_enabled !== false;
+
+        if (plant.care_schedule.next_watering_date && wateringEnabled) {
           const wateringDate = new Date(plant.care_schedule.next_watering_date);
-          this.scheduleWateringNotification(plant.name, plant.id, wateringDate);
+          // Only schedule future notifications (overdue handled by checkOverduePlants)
+          if (wateringDate > new Date()) {
+            this.scheduleWateringNotification(plant.name, plant.id, wateringDate);
+          }
         }
-        
-        // Schedule fertilizing notifications
-        if (plant.care_schedule.next_fertilizing_date && plant.care_schedule.fertilizing_notifications_enabled) {
+
+        if (plant.care_schedule.next_fertilizing_date && fertilizingEnabled) {
           const fertilizingDate = new Date(plant.care_schedule.next_fertilizing_date);
-          this.scheduleFertilizingNotification(plant.name, plant.id, fertilizingDate);
+          if (fertilizingDate > new Date()) {
+            this.scheduleFertilizingNotification(plant.name, plant.id, fertilizingDate);
+          }
         }
-        
-        // Schedule tilling notifications
-        if (plant.care_schedule.next_tilling_date && plant.care_schedule.tilling_notifications_enabled) {
+
+        if (plant.care_schedule.next_tilling_date && tillingEnabled) {
           const tillingDate = new Date(plant.care_schedule.next_tilling_date);
-          this.scheduleTillingNotification(plant.name, plant.id, tillingDate);
+          if (tillingDate > new Date()) {
+            this.scheduleTillingNotification(plant.name, plant.id, tillingDate);
+          }
         }
       }
     });
@@ -304,29 +371,31 @@ export class NotificationService {
     if (typeof window === 'undefined') return;
 
     try {
-      // Get existing notifications
       const existingNotifications = localStorage.getItem('notification_history');
       const notifications = existingNotifications ? JSON.parse(existingNotifications) : [];
 
-      // Create new notification object with translation keys
+      // Deduplicate: don't add the same overdue/care notification for the same plant+careType today
+      const today = new Date().toDateString();
+      const isDuplicate = notifications.some((n: any) => {
+        if (n.titleKey !== titleKey) return false;
+        if (n.data?.plantId !== data?.plantId) return false;
+        if (n.data?.careType !== data?.careType) return false;
+        return new Date(n.timestamp).toDateString() === today;
+      });
+      if (isDuplicate) return;
+
       const newNotification = {
         id: `notif-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         emoji,
         titleKey,
         messageKey,
-        data, // Contains plantName and other variables for interpolation
+        data,
         timestamp: new Date().toISOString(),
         read: false
       };
 
-      // Add to beginning of array (newest first)
       notifications.unshift(newNotification);
-
-      // Keep only the last 50 notifications
-      const trimmedNotifications = notifications.slice(0, 50);
-
-      // Save back to localStorage
-      localStorage.setItem('notification_history', JSON.stringify(trimmedNotifications));
+      localStorage.setItem('notification_history', JSON.stringify(notifications.slice(0, 50)));
     } catch (error) {
       console.error('Failed to save notification to history:', error);
     }

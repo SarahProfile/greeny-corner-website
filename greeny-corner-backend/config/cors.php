@@ -19,7 +19,12 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['http://localhost:3000'],
+    'allowed_origins' => [
+        'http://localhost:3000',
+        'https://greenycorner.ae',
+        'https://www.greenycorner.ae',
+        'https://api.greenycorner.ae',
+    ],
 
     'allowed_origins_patterns' => [],
 
@@ -27,7 +32,7 @@ return [
 
     'exposed_headers' => [],
 
-    'max_age' => 0,
+    'max_age' => 86400,
 
     'supports_credentials' => true,
 

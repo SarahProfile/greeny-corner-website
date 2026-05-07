@@ -58,7 +58,7 @@ export default function AccountPage() {
       }, 2000);
     } catch (error) {
       console.error('Failed to submit help message:', error);
-      alert('Failed to submit your message. Please try again.');
+      alert(t('account.failedToSubmit'));
     } finally {
       setSubmittingHelp(false);
     }
@@ -190,27 +190,27 @@ export default function AccountPage() {
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             <div className={`p-4 rounded-2xl text-center ${plantCount >= 1 ? 'bg-gradient-to-br from-green-100 to-emerald-100 border-2 border-green-300' : 'bg-gray-100 opacity-50'}`}>
               <p className="text-4xl mb-2">🌱</p>
-              <p className="text-sm font-semibold">{t('account.firstPlant')}</p>
+              <p className="text-sm font-semibold text-gray-800">{t('account.firstPlant')}</p>
             </div>
             <div className={`p-4 rounded-2xl text-center ${plantCount >= 5 ? 'bg-gradient-to-br from-blue-100 to-cyan-100 border-2 border-blue-300' : 'bg-gray-100 opacity-50'}`}>
               <p className="text-4xl mb-2">🌿</p>
-              <p className="text-sm font-semibold">{t('account.fivePlants')}</p>
+              <p className="text-sm font-semibold text-gray-800">{t('account.fivePlants')}</p>
             </div>
             <div className={`p-4 rounded-2xl text-center ${plantCount >= 10 ? 'bg-gradient-to-br from-purple-100 to-pink-100 border-2 border-purple-300' : 'bg-gray-100 opacity-50'}`}>
               <p className="text-4xl mb-2">🌲</p>
-              <p className="text-sm font-semibold">{t('account.tenPlants')}</p>
+              <p className="text-sm font-semibold text-gray-800">{t('account.tenPlants')}</p>
             </div>
             <div className={`p-4 rounded-2xl text-center ${plantCount >= 25 ? 'bg-gradient-to-br from-yellow-100 to-orange-100 border-2 border-yellow-300' : 'bg-gray-100 opacity-50'}`}>
               <p className="text-4xl mb-2">🌳</p>
-              <p className="text-sm font-semibold">{t('account.twentyFivePlants')}</p>
+              <p className="text-sm font-semibold text-gray-800">{t('account.twentyFivePlants')}</p>
             </div>
             <div className={`p-4 rounded-2xl text-center ${plantCount >= 50 ? 'bg-gradient-to-br from-red-100 to-pink-100 border-2 border-red-300' : 'bg-gray-100 opacity-50'}`}>
               <p className="text-4xl mb-2">🏆</p>
-              <p className="text-sm font-semibold">{t('account.fiftyPlants')}</p>
+              <p className="text-sm font-semibold text-gray-800">{t('account.fiftyPlants')}</p>
             </div>
             <div className={`p-4 rounded-2xl text-center ${plantCount >= 100 ? 'bg-gradient-to-br from-indigo-100 to-purple-100 border-2 border-indigo-300' : 'bg-gray-100 opacity-50'}`}>
               <p className="text-4xl mb-2">👑</p>
-              <p className="text-sm font-semibold">{t('account.hundredPlants')}</p>
+              <p className="text-sm font-semibold text-gray-800">{t('account.hundredPlants')}</p>
             </div>
           </div>
         </div>

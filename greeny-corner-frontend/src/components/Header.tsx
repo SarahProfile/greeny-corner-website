@@ -9,6 +9,7 @@ import LanguageSwitcher from '@/components/LanguageSwitcher';
 import { notificationService } from '@/lib/notifications';
 
 const IOS_APP_URL = 'https://apps.apple.com/ae/app/greeny-corner/id6756967530';
+const ANDROID_APP_URL = 'https://play.google.com/store/apps/details?id=com.greenycorner.app';
 
 interface HeaderProps {
   showUserInfo?: boolean;
@@ -278,31 +279,44 @@ export default function Header({ showUserInfo = true }: HeaderProps) {
           </div>
           <div className="flex items-center space-x-4">
             <LanguageSwitcher />
-            {/* App Store link - visible when not logged in and not guest */}
+            {/* App Store + Google Play links - visible when not logged in and not guest */}
             {!user && !isGuest && (
-              <a
-                href={IOS_APP_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 bg-black text-white text-xs font-medium rounded-lg hover:bg-gray-800 transition-colors"
-              >
-                <svg viewBox="0 0 24 24" className="w-4 h-4 fill-white flex-shrink-0" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
-                </svg>
-                App Store
-              </a>
+              <div className="hidden sm:flex items-center gap-2">
+                <a
+                  href={IOS_APP_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-black text-white text-xs font-medium rounded-lg hover:bg-gray-800 transition-colors"
+                >
+                  <svg viewBox="0 0 24 24" className="w-4 h-4 fill-white flex-shrink-0" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
+                  </svg>
+                  {t('footer.appStore')}
+                </a>
+                <a
+                  href={ANDROID_APP_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-black text-white text-xs font-medium rounded-lg hover:bg-gray-800 transition-colors"
+                >
+                  <svg viewBox="0 0 24 24" className="w-4 h-4 fill-white flex-shrink-0" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M3.18 23.76c.3.17.64.2.96.08l.1-.06 10.72-6.2-2.3-2.31-9.48 8.49zM.75 1.5C.44 1.83.25 2.3.25 2.9v18.2c0 .6.19 1.07.5 1.4l.08.07 10.2-10.2v-.24L.83 1.43l-.08.07zM20.6 10.4l-2.16-1.25-2.57 2.57 2.57 2.57 2.18-1.26c.62-.36.62-.95 0-1.31l-.02-.32zM4.14.24l10.72 6.2-2.3 2.3L3.08.26 4.14.24z"/>
+                  </svg>
+                  {t('footer.googlePlay')}
+                </a>
+              </div>
             )}
             {/* Guest mode indicator */}
             {isGuest && (
               <div className="flex items-center gap-2">
                 <span className="hidden sm:inline text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-                  Browsing as Guest
+                  {t('auth.browsingAsGuest')}
                 </span>
                 <button
                   onClick={handleGuestLogout}
                   className="text-xs font-medium text-green-600 hover:text-green-700"
                 >
-                  Sign In
+                  {t('auth.signInButton')}
                 </button>
               </div>
             )}
@@ -326,10 +340,22 @@ export default function Header({ showUserInfo = true }: HeaderProps) {
                     <span>{t('navigation.addPlant')}</span>
                   </Link>
                   <Link
+                    href="/notifications"
+                    className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+                  >
+                    {t('nav.notifications')}
+                  </Link>
+                  <Link
                     href="/account"
                     className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-colors"
                   >
                     {t('nav.account')}
+                  </Link>
+                  <Link
+                    href="/about"
+                    className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+                  >
+                    {t('nav.about')}
                   </Link>
                   {user.is_admin && (
                     <Link
@@ -339,7 +365,7 @@ export default function Header({ showUserInfo = true }: HeaderProps) {
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                       </svg>
-                      <span>Admin</span>
+                      <span>{t('nav.admin')}</span>
                     </Link>
                   )}
                 </nav>
@@ -374,6 +400,14 @@ export default function Header({ showUserInfo = true }: HeaderProps) {
                             {t('notifications.clearAll')}
                           </button>
                         )}
+                      </div>
+
+                      {/* View all link */}
+                      <div className="px-4 py-2 border-b border-gray-100 flex justify-end">
+                        <Link href="/notifications" onClick={() => setShowNotifications(false)}
+                          className="text-xs text-emerald-600 hover:text-emerald-700 font-semibold">
+                          {t('notifications.viewAll')} →
+                        </Link>
                       </div>
 
                       {/* Notifications List */}

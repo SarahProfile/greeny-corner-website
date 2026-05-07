@@ -1,13 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
+import { useTranslation } from 'react-i18next';
 
 export default function ForgotPasswordPage() {
   const [emailOrPhone, setEmailOrPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const { t, i18n } = useTranslation();
+  const isRTL = i18n.language === 'ar';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -16,27 +19,24 @@ export default function ForgotPasswordPage() {
     setMessage('');
 
     try {
-      // Check if input is email format (Firebase only supports email reset)
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailOrPhone)) {
-        throw new Error('Please enter a valid email address for password reset.');
+        throw new Error(t('forgotPassword.validEmailRequired'));
       }
 
-      // Dynamic import Firebase to ensure it only runs on client side
       const { sendPasswordResetEmail } = await import('firebase/auth');
       const { auth } = await import('@/lib/firebase');
 
-      // Use Firebase password reset
       await sendPasswordResetEmail(auth, emailOrPhone);
-      
-      setMessage('Password reset instructions have been sent to your email address.');
+
+      setMessage(t('forgotPassword.successMessage'));
     } catch (err: any) {
       console.error('Password reset error:', err);
       if (err.code === 'auth/user-not-found') {
-        setError('No user found with this email address.');
+        setError(t('forgotPassword.userNotFound'));
       } else if (err.code === 'auth/invalid-email') {
-        setError('Please enter a valid email address.');
+        setError(t('forgotPassword.invalidEmail'));
       } else {
-        setError(`Error: ${err.code || 'Unknown'} - ${err.message || 'Failed to send reset instructions'}`);
+        setError(err.message || t('forgotPassword.validEmailRequired'));
       }
     } finally {
       setLoading(false);
@@ -44,14 +44,14 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-green-50">
+    <div className="min-h-screen flex items-center justify-center bg-green-50" dir={isRTL ? 'rtl' : 'ltr'}>
       <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-lg shadow-md">
         <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Reset your password
-          </h2>
+          <h1 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            {t('forgotPassword.title')}
+          </h1>
           <p className="mt-2 text-center text-sm text-gray-600">
-            Enter your email address and we'll send you instructions to reset your password.
+            {t('forgotPassword.description')}
           </p>
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
@@ -67,7 +67,7 @@ export default function ForgotPasswordPage() {
           )}
           <div>
             <label htmlFor="emailOrPhone" className="block text-sm font-medium text-gray-700">
-              Email address
+              {t('forgotPassword.emailAddress')}
             </label>
             <input
               id="emailOrPhone"
@@ -78,7 +78,7 @@ export default function ForgotPasswordPage() {
               value={emailOrPhone}
               onChange={(e) => setEmailOrPhone(e.target.value)}
               className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 focus:z-10 sm:text-sm"
-              placeholder="Enter your email address"
+              placeholder={t('forgotPassword.emailPlaceholder')}
             />
           </div>
 
@@ -88,13 +88,13 @@ export default function ForgotPasswordPage() {
               disabled={loading}
               className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Sending...' : 'Send reset instructions'}
+              {loading ? t('forgotPassword.sending') : t('forgotPassword.sendReset')}
             </button>
           </div>
 
           <div className="text-center">
             <Link href="/login" className="font-medium text-green-600 hover:text-green-500">
-              Back to sign in
+              {t('forgotPassword.backToSignIn')}
             </Link>
           </div>
         </form>

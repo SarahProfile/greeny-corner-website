@@ -11,6 +11,22 @@ use App\Http\Controllers\API\PlantEncyclopediaController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
+// App version check — update versions here when releasing a new build
+Route::get('/app-version', function () {
+    return response()->json([
+        'ios' => [
+            'minimum'   => '1.0.14',
+            'latest'    => '1.0.15',
+            'store_url' => 'https://apps.apple.com/app/id6756967530',
+        ],
+        'android' => [
+            'minimum'   => '1.0.14',
+            'latest'    => '1.0.15',
+            'store_url' => 'https://play.google.com/store/apps/details?id=com.greenycorner.app',
+        ],
+    ]);
+});
+
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
