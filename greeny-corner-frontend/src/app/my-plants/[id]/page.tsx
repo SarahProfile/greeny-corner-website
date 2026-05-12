@@ -826,16 +826,30 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
                     </button>
                   ) : (
                     <div className="space-y-2 mt-2">
-                      {treatmentData.cause && <div className="bg-white/80 rounded-xl p-3 border border-red-200"><p className="text-xs font-bold text-red-700 uppercase mb-1">{i18n.language === 'ar' ? 'السبب' : 'Cause'}</p><p className="text-sm text-red-800">{treatmentData.cause}</p></div>}
-                      {treatmentData.symptoms && <div className="bg-white/80 rounded-xl p-3 border border-orange-200"><p className="text-xs font-bold text-orange-700 uppercase mb-1">{i18n.language === 'ar' ? 'الأعراض' : 'Symptoms'}</p><p className="text-sm text-orange-800">{treatmentData.symptoms}</p></div>}
-                      {treatmentData.treatment?.length > 0 && (
-                        <div className="bg-white/80 rounded-xl p-3 border border-green-200">
-                          <p className="text-xs font-bold text-green-700 uppercase mb-1">{i18n.language === 'ar' ? 'خطوات العلاج' : 'Treatment Steps'}</p>
-                          <ol className="space-y-1">{treatmentData.treatment.map((step: string, i: number) => <li key={i} className="text-sm text-green-800 flex gap-2"><span className="font-bold shrink-0">{i + 1}.</span><span>{step}</span></li>)}</ol>
-                        </div>
-                      )}
-                      {treatmentData.prevention && <div className="bg-white/80 rounded-xl p-3 border border-blue-200"><p className="text-xs font-bold text-blue-700 uppercase mb-1">{i18n.language === 'ar' ? 'الوقاية' : 'Prevention'}</p><p className="text-sm text-blue-800">{treatmentData.prevention}</p></div>}
-                      {treatmentData.recovery_time && <div className="bg-white/80 rounded-xl p-3 border border-purple-200"><p className="text-xs font-bold text-purple-700 uppercase mb-1">{i18n.language === 'ar' ? 'وقت التعافي' : 'Recovery Time'}</p><p className="text-sm text-purple-800">{treatmentData.recovery_time}</p></div>}
+                      {(() => {
+                        const ar = i18n.language === 'ar';
+                        const cause = ar ? treatmentData.cause_ar : treatmentData.cause_en;
+                        const symptoms = ar ? treatmentData.symptoms_ar : treatmentData.symptoms_en;
+                        const treatment = ar ? treatmentData.treatment_ar : treatmentData.treatment_en;
+                        const prevention = ar ? treatmentData.prevention_ar : treatmentData.prevention_en;
+                        const recoveryTime = ar ? treatmentData.recovery_time_ar : treatmentData.recovery_time;
+                        const fertName = ar ? treatmentData.fertilizer_name_ar : treatmentData.fertilizer_name;
+                        const fertType = ar ? treatmentData.fertilizer_type_ar : treatmentData.fertilizer_type;
+                        const fertApp = ar ? treatmentData.fertilizer_application_ar : treatmentData.fertilizer_application_en;
+                        return <>
+                          {cause && <div className="bg-white/80 rounded-xl p-3 border border-red-200"><p className="text-xs font-bold text-red-700 uppercase mb-1">{ar ? 'السبب' : 'Cause'}</p><p className="text-sm text-red-800">{cause}</p></div>}
+                          {symptoms && <div className="bg-white/80 rounded-xl p-3 border border-orange-200"><p className="text-xs font-bold text-orange-700 uppercase mb-1">{ar ? 'الأعراض' : 'Symptoms'}</p><p className="text-sm text-orange-800">{symptoms}</p></div>}
+                          {treatment?.length > 0 && (
+                            <div className="bg-white/80 rounded-xl p-3 border border-green-200">
+                              <p className="text-xs font-bold text-green-700 uppercase mb-1">{ar ? 'خطوات العلاج' : 'Treatment Steps'}</p>
+                              <ol className="space-y-1">{treatment.map((step: string, i: number) => <li key={i} className="text-sm text-green-800 flex gap-2"><span className="font-bold shrink-0">{i + 1}.</span><span>{step}</span></li>)}</ol>
+                            </div>
+                          )}
+                          {prevention && <div className="bg-white/80 rounded-xl p-3 border border-blue-200"><p className="text-xs font-bold text-blue-700 uppercase mb-1">{ar ? 'الوقاية' : 'Prevention'}</p><p className="text-sm text-blue-800">{prevention}</p></div>}
+                          {recoveryTime && <div className="bg-white/80 rounded-xl p-3 border border-purple-200"><p className="text-xs font-bold text-purple-700 uppercase mb-1">{ar ? 'وقت التعافي' : 'Recovery Time'}</p><p className="text-sm text-purple-800">{recoveryTime}</p></div>}
+                          {fertName && <div className="bg-white/80 rounded-xl p-3 border border-yellow-200"><p className="text-xs font-bold text-yellow-700 uppercase mb-1">{ar ? 'السماد الموصى به' : 'Recommended Fertilizer'}</p><p className="text-sm text-yellow-800">{fertName}{fertType ? ` — ${fertType}` : ''}</p>{fertApp && <p className="text-xs text-yellow-700 mt-1">{fertApp}</p>}</div>}
+                        </>;
+                      })()}
                       <button onClick={() => setTreatmentData(null)} className="text-xs text-gray-500 hover:text-gray-700 mt-1">{i18n.language === 'ar' ? 'إخفاء' : 'Hide'}</button>
                     </div>
                   )}
