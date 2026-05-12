@@ -5,7 +5,7 @@ import { notFound } from 'next/navigation';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://api.greenycorner.ae/api';
 
-export const revalidate = 86400;
+export const revalidate = 3600; // ISR: rebuild every hour, serve from edge cache
 
 interface CareInfo {
   watering_interval_days?: number;
@@ -34,6 +34,7 @@ interface EncyclopediaPlant {
   id: number;
   slug: string;
   name: string;
+  name_ar?: string;
   scientific_name?: string;
   family?: string;
   genus?: string;
@@ -65,7 +66,7 @@ interface SimilarPlant {
 
 async function fetchPlant(slug: string): Promise<EncyclopediaPlant | null> {
   try {
-    const res = await fetch(`${API}/encyclopedia/plants/${slug}`, { next: { revalidate: 86400 } });
+    const res = await fetch(`${API}/encyclopedia/plants/${slug}`, { next: { revalidate: 3600 } });
     if (res.status === 404) return null;
     if (!res.ok) return null;
     return res.json();
@@ -114,6 +115,20 @@ export async function generateStaticParams() {
   return slugs;
 }
 
+function buildAutoDescription(plant: EncyclopediaPlant): string {
+  const parts: string[] = [];
+  const names = plant.common_names?.slice(0, 3) ?? [];
+  const namesStr = names.length > 0 ? ` (also known as ${names.join(', ')})` : '';
+  parts.push(
+    `${plant.name}${namesStr} is a plant species${plant.family ? ` in the ${plant.family} family` : ''}${plant.genus ? `, genus ${plant.genus}` : ''}.`,
+  );
+  if (plant.origin) parts.push(`Native to ${plant.origin}.`);
+  if (plant.care_info?.light) parts.push(`It prefers ${plant.care_info.light} conditions.`);
+  if (plant.care_info?.watering_interval_days)
+    parts.push(`Water every ${plant.care_info.watering_interval_days} days.`);
+  return parts.join(' ');
+}
+
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const plant = await fetchPlant(slug);
@@ -122,21 +137,35 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     return { title: 'Plant Not Found | Greeny Corner' };
   }
 
-  const title = plant.scientific_name
-    ? `${plant.name} (${plant.scientific_name}) - Care Guide | Greeny Corner`
+  // Title: prefer top common name over scientific name when it adds search value
+  const topCommonName = plant.common_names?.[0];
+  const titleSuffix = (topCommonName && topCommonName.toLowerCase() !== plant.name.toLowerCase())
+    ? topCommonName
+    : plant.scientific_name;
+  const title = titleSuffix
+    ? `${plant.name} (${titleSuffix}) - Care Guide | Greeny Corner`
     : `${plant.name} - Plant Care Guide | Greeny Corner`;
 
-  const desc = plant.description || await fetchWikipediaDescription(plant.name);
-  const description = desc
-    ? desc.slice(0, 160).replace(/\s+/g, ' ').trim() + '...'
-    : `Learn how to care for ${plant.name}. Watering schedule, light requirements, and expert growing tips.`;
+  const desc = plant.description
+    || await fetchWikipediaDescription(plant.name)
+    || buildAutoDescription(plant);
+  const commonNamesList = plant.common_names?.slice(0, 3) ?? [];
+  const commonNamesStr  = commonNamesList.length > 0 ? ` Also known as ${commonNamesList.join(', ')}.` : '';
+  const baseDesc        = desc.slice(0, 130).replace(/\s+/g, ' ').trim() + '...';
+  const description     = (baseDesc + commonNamesStr).slice(0, 160);
 
   const image = plant.images?.[0];
 
   return {
     title,
     description,
-    keywords: [plant.name, plant.scientific_name, plant.family, 'plant care', 'care guide', 'how to grow', 'watering'].filter(Boolean).join(', '),
+    keywords: [
+      plant.name,
+      plant.scientific_name,
+      plant.family,
+      ...(plant.common_names?.slice(0, 6) ?? []),
+      'plant care', 'care guide', 'how to grow', 'watering',
+    ].filter(Boolean).join(', '),
     openGraph: {
       title,
       description,
@@ -146,7 +175,14 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       images: image ? [{ url: image, alt: plant.name }] : [],
     },
     twitter: { card: 'summary_large_image', title, description, images: image ? [image] : [] },
-    alternates: { canonical: `https://greenycorner.ae/plants/${slug}` },
+    alternates: {
+      canonical: `https://www.greenycorner.ae/plants/${slug}`,
+      languages: {
+        'en':        `https://www.greenycorner.ae/plants/${slug}`,
+        'ar':        `https://www.greenycorner.ae/ar/plants/${slug}`,
+        'x-default': `https://www.greenycorner.ae/plants/${slug}`,
+      },
+    },
   };
 }
 
@@ -174,8 +210,9 @@ export default async function PlantDetailPage({ params }: { params: Promise<{ sl
 
   if (!plant) notFound();
 
-  // If no description stored, try fetching live from Wikipedia
-  const description = plant.description || await fetchWikipediaDescription(plant.name);
+  const description = plant.description
+    || await fetchWikipediaDescription(plant.name)
+    || buildAutoDescription(plant);
 
   const mainImage = plant.images?.[0];
 
@@ -185,6 +222,12 @@ export default async function PlantDetailPage({ params }: { params: Promise<{ sl
     headline: `${plant.name} - Plant Care Guide`,
     description: description?.slice(0, 200),
     image: mainImage,
+    about: {
+      '@type': 'Thing',
+      name: plant.name,
+      alternateName: plant.common_names ?? [],
+      ...(plant.scientific_name ? { sameAs: `https://en.wikipedia.org/wiki/${encodeURIComponent(plant.scientific_name.replace(/ /g, '_'))}` } : {}),
+    },
     author: { '@type': 'Organization', name: 'Greeny Corner', url: 'https://greenycorner.ae' },
     publisher: { '@type': 'Organization', name: 'Greeny Corner', url: 'https://greenycorner.ae', logo: 'https://greenycorner.ae/logo.png' },
     mainEntityOfPage: { '@type': 'WebPage', '@id': `https://greenycorner.ae/plants/${slug}` },
@@ -201,9 +244,22 @@ export default async function PlantDetailPage({ params }: { params: Promise<{ sl
     } : {}),
   };
 
+  const breadcrumbLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home',             item: 'https://www.greenycorner.ae' },
+      { '@type': 'ListItem', position: 2, name: 'Plants',           item: 'https://www.greenycorner.ae/plants' },
+      ...(plant.family ? [{ '@type': 'ListItem', position: 3, name: plant.family, item: `https://www.greenycorner.ae/plants?family=${encodeURIComponent(plant.family)}` },
+        { '@type': 'ListItem', position: 4, name: plant.name, item: `https://www.greenycorner.ae/plants/${slug}` }]
+      : [{ '@type': 'ListItem', position: 3, name: plant.name, item: `https://www.greenycorner.ae/plants/${slug}` }]),
+    ],
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-green-50">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }} />
 
       {/* Header */}
       <header className="bg-white shadow-sm">
@@ -213,6 +269,7 @@ export default async function PlantDetailPage({ params }: { params: Promise<{ sl
           </Link>
           <nav className="flex items-center gap-4 text-sm">
             <Link href="/plants" className="text-emerald-600 font-semibold">Plant Encyclopedia</Link>
+            <Link href={`/ar/plants/${slug}`} className="text-gray-600 hover:text-emerald-600 font-medium" title="Arabic version">العربية</Link>
             <Link href="/register" className="bg-emerald-500 text-white px-4 py-2 rounded-xl font-semibold hover:bg-emerald-600 transition-colors">Get App</Link>
           </nav>
         </div>
@@ -251,7 +308,13 @@ export default async function PlantDetailPage({ params }: { params: Promise<{ sl
             <div className="bg-white rounded-3xl shadow-xl p-7 border border-emerald-100">
               <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-2 leading-tight">{plant.name}</h1>
               {plant.scientific_name && (
-                <p className="text-lg italic text-gray-500 mb-4">{plant.scientific_name}</p>
+                <p className="text-lg italic text-gray-500 mb-2">{plant.scientific_name}</p>
+              )}
+              {plant.common_names && plant.common_names.length > 0 && (
+                <p className="text-sm text-gray-500 mb-4">
+                  <span className="font-semibold text-gray-600">Also known as: </span>
+                  {plant.common_names.slice(0, 5).join(' · ')}
+                </p>
               )}
               <div className="flex flex-wrap gap-2 mb-4">
                 {plant.family && <span className="bg-emerald-100 text-emerald-700 text-sm font-semibold px-3 py-1 rounded-full">{plant.family}</span>}
@@ -359,57 +422,60 @@ export default async function PlantDetailPage({ params }: { params: Promise<{ sl
           </section>
         )}
 
-        {/* Growth Info + Benefits + Facts grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-          {plant.growth_info && Object.values(plant.growth_info).some(Boolean) && (
-            <section className="bg-white rounded-3xl shadow-xl p-8 border border-gray-100">
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">📏 Growth Information</h2>
-              <div className="space-y-3">
-                {plant.growth_info.growth_rate && (
-                  <div className="flex justify-between items-center py-2 border-b border-gray-50">
-                    <span className="text-gray-500 text-sm">Growth Rate</span>
-                    <span className="font-semibold text-gray-800">{plant.growth_info.growth_rate}</span>
-                  </div>
-                )}
-                {(plant.growth_info.mature_height || plant.growth_info.mature_size) && (
-                  <div className="flex justify-between items-center py-2 border-b border-gray-50">
-                    <span className="text-gray-500 text-sm">Mature Size</span>
-                    <span className="font-semibold text-gray-800">{plant.growth_info.mature_height || plant.growth_info.mature_size}</span>
-                  </div>
-                )}
-                {plant.growth_info.spread && (
-                  <div className="flex justify-between items-center py-2 border-b border-gray-50">
-                    <span className="text-gray-500 text-sm">Spread</span>
-                    <span className="font-semibold text-gray-800">{plant.growth_info.spread}</span>
-                  </div>
-                )}
-                {plant.growth_info.cycle && (
-                  <div className="flex justify-between items-center py-2 border-b border-gray-50">
-                    <span className="text-gray-500 text-sm">Cycle</span>
-                    <span className="font-semibold text-gray-800">{plant.growth_info.cycle}</span>
-                  </div>
-                )}
-                {plant.growth_info.type && (
-                  <div className="flex justify-between items-center py-2">
-                    <span className="text-gray-500 text-sm">Type</span>
-                    <span className="font-semibold text-gray-800">{plant.growth_info.type}</span>
-                  </div>
-                )}
-              </div>
-            </section>
-          )}
+        {/* Common Names — prominent for SEO */}
+        {plant.common_names && plant.common_names.length > 0 && (
+          <section className="bg-white rounded-3xl shadow-xl p-8 mb-8 border border-gray-100">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">🏷️ Common Names for {plant.name}</h2>
+            <p className="text-sm text-gray-500 mb-4">
+              This plant is known by many names around the world. Whether you&apos;re searching for &quot;{plant.common_names[0]}&quot;
+              {plant.common_names[1] ? ` or "${plant.common_names[1]}"` : ''}, they all refer to the same species.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {plant.common_names.map((name, i) => (
+                <span key={i} className="bg-emerald-50 text-emerald-800 text-sm font-semibold px-3 py-1.5 rounded-full border border-emerald-100">{name}</span>
+              ))}
+            </div>
+          </section>
+        )}
 
-          {plant.common_names && plant.common_names.length > 0 && (
-            <section className="bg-white rounded-3xl shadow-xl p-8 border border-gray-100">
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">🏷️ Also Known As</h2>
-              <div className="flex flex-wrap gap-2">
-                {plant.common_names.map((name, i) => (
-                  <span key={i} className="bg-emerald-50 text-emerald-800 text-sm font-medium px-3 py-1.5 rounded-full border border-emerald-100">{name}</span>
-                ))}
-              </div>
-            </section>
-          )}
-        </div>
+        {/* Growth Info */}
+        {plant.growth_info && Object.values(plant.growth_info).some(Boolean) && (
+          <section className="bg-white rounded-3xl shadow-xl p-8 mb-8 border border-gray-100">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">📏 Growth Information</h2>
+            <div className="space-y-3">
+              {plant.growth_info.growth_rate && (
+                <div className="flex justify-between items-center py-2 border-b border-gray-50">
+                  <span className="text-gray-500 text-sm">Growth Rate</span>
+                  <span className="font-semibold text-gray-800">{plant.growth_info.growth_rate}</span>
+                </div>
+              )}
+              {(plant.growth_info.mature_height || plant.growth_info.mature_size) && (
+                <div className="flex justify-between items-center py-2 border-b border-gray-50">
+                  <span className="text-gray-500 text-sm">Mature Size</span>
+                  <span className="font-semibold text-gray-800">{plant.growth_info.mature_height || plant.growth_info.mature_size}</span>
+                </div>
+              )}
+              {plant.growth_info.spread && (
+                <div className="flex justify-between items-center py-2 border-b border-gray-50">
+                  <span className="text-gray-500 text-sm">Spread</span>
+                  <span className="font-semibold text-gray-800">{plant.growth_info.spread}</span>
+                </div>
+              )}
+              {plant.growth_info.cycle && (
+                <div className="flex justify-between items-center py-2 border-b border-gray-50">
+                  <span className="text-gray-500 text-sm">Cycle</span>
+                  <span className="font-semibold text-gray-800">{plant.growth_info.cycle}</span>
+                </div>
+              )}
+              {plant.growth_info.type && (
+                <div className="flex justify-between items-center py-2">
+                  <span className="text-gray-500 text-sm">Type</span>
+                  <span className="font-semibold text-gray-800">{plant.growth_info.type}</span>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
 
         {/* Benefits */}
         {plant.benefits && plant.benefits.length > 0 && (
@@ -469,6 +535,117 @@ export default async function PlantDetailPage({ params }: { params: Promise<{ sl
             </div>
           </section>
         )}
+
+        {/* Taxonomy / Classification */}
+        <section className="bg-white rounded-3xl shadow-xl p-8 mb-8 border border-gray-100">
+          <h2 className="text-2xl font-bold text-gray-900 mb-5">🔬 Plant Classification</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            {[
+              { label: 'Kingdom', value: 'Plantae' },
+              plant.family  && { label: 'Family',  value: plant.family },
+              plant.genus   && { label: 'Genus',   value: plant.genus },
+              plant.scientific_name && { label: 'Species', value: plant.scientific_name },
+              plant.origin  && { label: 'Origin',  value: plant.origin },
+              plant.growth_info?.type && { label: 'Type', value: plant.growth_info.type },
+              plant.growth_info?.cycle && { label: 'Lifecycle', value: plant.growth_info.cycle },
+              plant.growth_info?.growth_rate && { label: 'Growth Rate', value: plant.growth_info.growth_rate },
+            ].filter(Boolean).map((row: any) => (
+              <div key={row.label} className="bg-gray-50 rounded-2xl p-3 border border-gray-100">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">{row.label}</p>
+                <p className="text-sm font-semibold text-gray-800 italic">{row.value}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* FAQ */}
+        {(() => {
+          const faqs: { q: string; a: string }[] = [];
+
+          faqs.push({
+            q: `What is ${plant.name}?`,
+            a: description
+              ? description.slice(0, 300) + (description.length > 300 ? '…' : '')
+              : `${plant.name} (${plant.scientific_name}) is a plant species in the ${plant.family || 'Plantae'} family${plant.genus ? `, genus ${plant.genus}` : ''}.`,
+          });
+
+          if (plant.scientific_name) {
+            faqs.push({
+              q: `What is the scientific name of ${plant.name}?`,
+              a: `The accepted scientific name of ${plant.name} is ${plant.scientific_name}${plant.family ? `, belonging to the family ${plant.family}` : ''}.`,
+            });
+          }
+
+          if (plant.family) {
+            faqs.push({
+              q: `What family does ${plant.name} belong to?`,
+              a: `${plant.name} belongs to the ${plant.family} family${plant.genus ? ` and the genus ${plant.genus}` : ''}. This classification is based on data from the Global Biodiversity Information Facility (GBIF).`,
+            });
+          }
+
+          if (plant.care_info?.watering_interval_days) {
+            faqs.push({
+              q: `How often should I water ${plant.name}?`,
+              a: `${plant.name} should be watered approximately every ${plant.care_info.watering_interval_days} days. ${plant.care_info.light ? `It prefers ${plant.care_info.light} conditions.` : ''} Always check the soil before watering — let the top inch dry out first.`,
+            });
+          } else {
+            faqs.push({
+              q: `How do I care for ${plant.name}?`,
+              a: `Caring for ${plant.name} starts with understanding its native environment. Water when the top soil feels dry, provide appropriate light based on its natural habitat, and ensure good drainage. The Greeny Corner app provides personalised watering reminders for ${plant.name}.`,
+            });
+          }
+
+          if (plant.toxicity) {
+            faqs.push({
+              q: `Is ${plant.name} toxic to pets or humans?`,
+              a: plant.toxicity,
+            });
+          } else {
+            faqs.push({
+              q: `Is ${plant.name} safe for pets?`,
+              a: `Toxicity information for ${plant.name} is not fully documented. As a precaution, keep plants out of reach of pets and children. Consult a veterinarian if your pet ingests any plant material.`,
+            });
+          }
+
+          if (plant.common_names && plant.common_names.length > 0) {
+            faqs.push({
+              q: `What are other names for ${plant.name}?`,
+              a: `${plant.name} is also known as: ${plant.common_names.slice(0, 8).join(', ')}.`,
+            });
+          }
+
+          const faqSchema = {
+            '@context': 'https://schema.org',
+            '@type': 'FAQPage',
+            mainEntity: faqs.map(f => ({
+              '@type': 'Question',
+              name: f.q,
+              acceptedAnswer: { '@type': 'Answer', text: f.a },
+            })),
+          };
+
+          return (
+            <>
+              <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
+              <section className="bg-white rounded-3xl shadow-xl p-8 mb-8 border border-gray-100">
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">❓ Frequently Asked Questions</h2>
+                <div className="space-y-4">
+                  {faqs.map((faq, i) => (
+                    <details key={i} className="group border border-gray-100 rounded-2xl overflow-hidden">
+                      <summary className="flex justify-between items-center px-5 py-4 cursor-pointer font-semibold text-gray-800 hover:bg-emerald-50 transition-colors list-none">
+                        <span>{faq.q}</span>
+                        <span className="text-emerald-500 text-xl group-open:rotate-45 transition-transform">+</span>
+                      </summary>
+                      <div className="px-5 pb-4 pt-1 text-gray-600 text-sm leading-relaxed border-t border-gray-50">
+                        {faq.a}
+                      </div>
+                    </details>
+                  ))}
+                </div>
+              </section>
+            </>
+          );
+        })()}
 
         {/* Final CTA */}
         <div className="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-3xl p-10 text-center text-white shadow-xl">

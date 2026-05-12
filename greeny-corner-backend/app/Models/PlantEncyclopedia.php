@@ -12,6 +12,7 @@ class PlantEncyclopedia extends Model
     protected $fillable = [
         'slug',
         'name',
+        'name_ar',
         'scientific_name',
         'family',
         'genus',

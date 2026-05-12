@@ -16,6 +16,7 @@ interface PlantListItem {
   family?: string;
   image?: string;
   is_featured?: boolean;
+  common_names?: string[];
   care_info?: {
     watering_interval_days?: number;
     light?: string;
@@ -63,16 +64,17 @@ async function fetchFeatured(): Promise<PlantListItem[]> {
 
 export async function generateMetadata(): Promise<Metadata> {
   return {
-    title: 'Plant Encyclopedia — Browse 10,000+ Plants | Greeny Corner',
-    description: 'Explore our complete plant encyclopedia with care guides, watering schedules, and growing tips for thousands of plants. Find your perfect plant today.',
+    title: 'Plant Encyclopedia — Browse 400,000+ Plants | Greeny Corner',
+    description: 'The world\'s largest free plant encyclopedia. Care guides, watering schedules, scientific names, and growing tips for over 400,000 plant species. Find any plant by name.',
+    keywords: 'plant encyclopedia, plant care guide, plant identification, how to grow plants, watering schedule, plant scientific names, indoor plants, outdoor plants',
     openGraph: {
-      title: 'Plant Encyclopedia | Greeny Corner',
-      description: 'Browse 10,000+ plants with care guides and growing tips.',
-      url: 'https://greenycorner.ae/plants',
+      title: 'Plant Encyclopedia — 400,000+ Plants | Greeny Corner',
+      description: 'Free care guides, scientific names, and growing tips for over 400,000 plant species.',
+      url: 'https://www.greenycorner.ae/plants',
       siteName: 'Greeny Corner',
       type: 'website',
     },
-    alternates: { canonical: 'https://greenycorner.ae/plants' },
+    alternates: { canonical: 'https://www.greenycorner.ae/plants' },
   };
 }
 
@@ -101,9 +103,14 @@ function PlantCard({ plant }: { plant: PlantListItem }) {
         )}
       </div>
       <div className="p-4">
-        <h3 className="font-bold text-gray-900 text-base leading-tight mb-1 line-clamp-1 group-hover:text-emerald-600 transition-colors">
+        <h3 className="font-bold text-gray-900 text-base leading-tight mb-0.5 line-clamp-1 group-hover:text-emerald-600 transition-colors">
           {plant.name}
         </h3>
+        {plant.common_names && plant.common_names.length > 0 && (
+          <p className="text-xs text-emerald-700 font-medium mb-1 line-clamp-1">
+            {plant.common_names.join(' · ')}
+          </p>
+        )}
         {plant.scientific_name && (
           <p className="text-xs text-gray-400 italic mb-2 line-clamp-1">{plant.scientific_name}</p>
         )}
@@ -148,9 +155,17 @@ export default async function PlantDirectoryPage({
     '@context': 'https://schema.org',
     '@type': 'CollectionPage',
     name: 'Plant Encyclopedia',
-    description: 'Browse thousands of plants with care guides',
-    url: 'https://greenycorner.ae/plants',
+    description: `Browse ${total.toLocaleString()}+ plants with care guides, watering schedules, and scientific classification. Search by common name or scientific name.`,
+    url: 'https://www.greenycorner.ae/plants',
     numberOfItems: total,
+    about: { '@type': 'Thing', name: 'Plants', sameAs: 'https://en.wikipedia.org/wiki/Plant' },
+    breadcrumb: {
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Home',  item: 'https://www.greenycorner.ae' },
+        { '@type': 'ListItem', position: 2, name: 'Plants', item: 'https://www.greenycorner.ae/plants' },
+      ],
+    },
   };
 
   return (
@@ -165,7 +180,7 @@ export default async function PlantDirectoryPage({
           </Link>
           <nav className="flex items-center gap-4 text-sm">
             <Link href="/plants" className="text-emerald-600 font-semibold">Plant Encyclopedia</Link>
-            <Link href="/plant-identifier" className="text-gray-600 hover:text-emerald-600">Identify Plant</Link>
+            <Link href="/ar/plants" className="text-gray-600 hover:text-emerald-600 font-medium" title="Arabic version">العربية</Link>
             <Link href="/register" className="bg-emerald-500 text-white px-4 py-2 rounded-xl font-semibold hover:bg-emerald-600 transition-colors">Get App</Link>
           </nav>
         </div>
@@ -177,11 +192,18 @@ export default async function PlantDirectoryPage({
           <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
             🌱 Plant Encyclopedia
           </h1>
-          <p className="text-lg text-gray-600 mb-2">
-            Explore {total > 0 ? total.toLocaleString() + '+' : 'thousands of'} plants with expert care guides
+          <p className="text-lg text-gray-600 mb-3">
+            Explore {total > 0 ? total.toLocaleString() + '+' : 'hundreds of thousands of'} plants with expert care guides
           </p>
-          <p className="text-sm text-gray-400 mb-8">
-            Sourced from Perenual, GBIF, and Wikipedia
+          <p className="text-sm text-gray-500 max-w-2xl mx-auto mb-2 leading-relaxed">
+            Search any plant by its common name, scientific name, or plant family. Every page includes
+            watering schedules, light requirements, toxicity info, and taxonomy — sourced from{' '}
+            <span className="font-medium text-gray-700">GBIF</span>,{' '}
+            <span className="font-medium text-gray-700">Wikipedia</span>, and{' '}
+            <span className="font-medium text-gray-700">Perenual</span>.
+          </p>
+          <p className="text-xs text-gray-400 mb-8">
+            🌿 Ferns · 🌵 Cacti · 🌸 Flowering plants · 🌳 Trees · 🍃 Tropical plants · 🌾 Grasses and more
           </p>
 
           {/* Search */}

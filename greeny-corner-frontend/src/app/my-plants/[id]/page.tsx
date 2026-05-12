@@ -136,8 +136,10 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
         if (data.api_data?.toxicity) {
           translateText(data.api_data.toxicity, 'ar').then(setTranslatedToxicity);
         }
-        if (data.health_notes && !/[\u0600-\u06FF]/.test(data.health_notes)) {
-          translateText(data.health_notes, 'ar').then(setTranslatedHealthNotes);
+        if (data.health_notes) {
+          let enNotes1 = data.health_notes;
+          try { const p1 = JSON.parse(data.health_notes); enNotes1 = p1.en || enNotes1; } catch {}
+          if (!/[\u0600-\u06FF]/.test(enNotes1)) translateText(enNotes1, 'ar').then(setTranslatedHealthNotes);
         }
       }
       // No back-translation for English — api_data.name always contains the English name
@@ -335,8 +337,10 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
       const result = await plantsAPI.checkPlantHealth(plant.id);
       if (result.success) {
         setPlant(result.plant);
-        if (i18n.language === 'ar' && result.plant?.health_notes && !/[؀-ۿ]/.test(result.plant.health_notes)) {
-          translateText(result.plant.health_notes, 'ar').then(setTranslatedHealthNotes);
+        if (i18n.language === 'ar' && result.plant?.health_notes) {
+          let enNotes2 = result.plant.health_notes;
+          try { const p2 = JSON.parse(result.plant.health_notes); enNotes2 = p2.en || enNotes2; } catch {}
+          if (!/[؀-ۿ]/.test(enNotes2)) translateText(enNotes2, 'ar').then(setTranslatedHealthNotes);
         }
       }
       setTreatmentData(null);
@@ -349,7 +353,8 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
 
   const handleGetTreatment = async () => {
     if (!plant) return;
-    const disease = plant.health_notes || plant.health_status || 'unknown disease';
+    let disease = plant.health_notes || plant.health_status || 'unknown disease';
+    try { const pd = JSON.parse(plant.health_notes || ''); disease = pd.en || disease; } catch {}
     const plantName = getLocalizedPlantName(plant);
     setLoadingTreatment(true);
     try {
@@ -789,7 +794,11 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
 
               {plant.health_notes && (
                 <div className="bg-white/60 rounded-xl p-4 mb-4">
-                  <p className="text-sm leading-relaxed">{(i18n.language === 'ar' && translatedHealthNotes) ? translatedHealthNotes : plant.health_notes}</p>
+                  {(() => {
+                    let notesText = plant.health_notes;
+                    try { const pn = JSON.parse(plant.health_notes); notesText = (i18n.language === 'ar' ? pn.ar : pn.en) || notesText; } catch {}
+                    return <p className="text-sm leading-relaxed">{(i18n.language === 'ar' && translatedHealthNotes) ? translatedHealthNotes : notesText}</p>;
+                  })()}
                 </div>
               )}
 

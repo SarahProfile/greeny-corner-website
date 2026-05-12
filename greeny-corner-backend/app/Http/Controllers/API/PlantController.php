@@ -111,8 +111,19 @@ class PlantController extends Controller
         $language = $request->input('language', 'en');
         \Log::info('Plant identification language:', ['language' => $language]);
 
-        $fullImagePath = Storage::disk('public')->path($imagePath);
-        $plantData = $this->identifyPlant($imagePath, $language);
+        $fullImagePath = $this->resolveImagePath('/storage/' . $imagePath) ?? Storage::disk('public')->path($imagePath);
+
+        try {
+            $plantData = $this->identifyPlant($imagePath, $language);
+        } catch (\RuntimeException $e) {
+            // Clean up the uploaded image so we don't leave orphaned files
+            Storage::disk('public')->delete($imagePath);
+            return response()->json([
+                'success' => false,
+                'error' => 'identification_failed',
+                'message' => 'Could not identify the plant. Please check your internet connection and try again.',
+            ], 503);
+        }
 
         // Check plant health via Gemini (OpenRouter) when first adding
         $healthResult = $this->checkHealthWithGemini($fullImagePath, $plantData['name'] ?? 'plant', $language);
@@ -151,12 +162,58 @@ class PlantController extends Controller
         // Extract just the language code (e.g., 'ar' from 'ar-AE' or 'en' from 'en-US')
         $language = substr($language, 0, 2);
 
+        // Fix existing plants that were saved with a scientific name instead of common name
+        $this->fixPlantNameIfScientific($plant);
+
         // Translate plant data if language is not English
         if ($language !== 'en' && $plant->api_data) {
             $plant->api_data = $this->translationService->translatePlantData($plant->api_data, $language);
         }
 
         return response()->json($plant);
+    }
+
+    private function fixPlantNameIfScientific(Plant $plant): void
+    {
+        // Scientific names have exactly two Latin words (Genus species), e.g. "Heptapleurum arboricola"
+        // Common names rarely match this pattern — if it does, resolve and update the DB record
+        $name = $plant->name ?? '';
+        $apiData = $plant->api_data ?? [];
+
+        $looksScientific = preg_match('/^[A-Z][a-z]+ [a-z]+$/', $name);
+        $hasCommonName = !empty($apiData['name_ar']) || !empty($apiData['common_name_resolved']);
+
+        if (!$looksScientific && $hasCommonName) {
+            return; // Nothing to fix
+        }
+
+        if ($looksScientific && env('GEMINI_API_KEY')) {
+            $commonName = $this->resolveCommonNameFromScientific($name);
+            if ($commonName && $commonName !== $name) {
+                $nameAr = $this->resolveArabicName($commonName);
+
+                $plant->name = $commonName;
+                $updatedApiData = is_array($apiData) ? $apiData : [];
+                $updatedApiData['name_ar'] = $nameAr ?? ($updatedApiData['name_ar'] ?? null);
+                $updatedApiData['common_name_resolved'] = $commonName;
+                $plant->api_data = $updatedApiData;
+                $plant->save();
+
+                \Log::info("Fixed scientific name '{$name}' → common name '{$commonName}' for plant ID {$plant->id}");
+                return;
+            }
+        }
+
+        // Even if name is fine, backfill name_ar if it's missing
+        if (empty($apiData['name_ar']) && env('GEMINI_API_KEY')) {
+            $nameAr = $this->resolveArabicName($name);
+            if ($nameAr) {
+                $updatedApiData = is_array($apiData) ? $apiData : [];
+                $updatedApiData['name_ar'] = $nameAr;
+                $plant->api_data = $updatedApiData;
+                $plant->save();
+            }
+        }
     }
 
     public function destroy(Request $request, $id)
@@ -324,7 +381,7 @@ class PlantController extends Controller
         try {
             // Store the new image
             $imagePath = $file->store('plants', 'public');
-            $fullImagePath = Storage::disk('public')->path($imagePath);
+            $fullImagePath = $this->resolveImagePath('/storage/' . $imagePath) ?? Storage::disk('public')->path($imagePath);
 
             \Log::info('Plant image update started', [
                 'plant_id' => $plant->id,
@@ -391,46 +448,80 @@ class PlantController extends Controller
         $plant = $request->user()->plants()->findOrFail($id);
         $language = $request->input('language', 'en');
 
-        // Resolve the image to a local file path
-        $imageUrl = $plant->getRawOriginal('image_url') ?? $plant->image_url;
-        $imagePath = null;
+        $imagePath = $this->resolveImagePath($plant->getRawOriginal('image_url') ?? $plant->image_url);
 
-        if (str_starts_with($imageUrl, '/storage/')) {
-            $relative = str_replace('/storage/', '', $imageUrl);
-            $imagePath = Storage::disk('public')->path($relative);
-        } elseif (str_starts_with($imageUrl, 'http')) {
-            // Download remote image to temp file
-            $tmpPath = tempnam(sys_get_temp_dir(), 'plant_health_') . '.jpg';
-            $imageContent = @file_get_contents($imageUrl);
-            if ($imageContent) {
-                file_put_contents($tmpPath, $imageContent);
-                $imagePath = $tmpPath;
-            }
-        }
-
-        if (!$imagePath || !file_exists($imagePath)) {
+        if (!$imagePath) {
             return response()->json(['success' => false, 'message' => 'Plant image not accessible'], 422);
         }
 
-        $healthResult = $this->checkHealthWithGemini($imagePath, $plant->name, $language);
+        $isTemp = isset($imagePath['is_temp']) && $imagePath['is_temp'];
+        $realPath = is_array($imagePath) ? $imagePath['path'] : $imagePath;
 
-        // Clean up temp file if created
-        if (isset($tmpPath) && file_exists($tmpPath)) {
-            unlink($tmpPath);
+        $healthResult = $this->checkHealthWithGemini($realPath, $plant->name, $language);
+
+        if ($isTemp && file_exists($realPath)) {
+            unlink($realPath);
+        }
+
+        if (!$healthResult['health_status']) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Could not analyze plant health. Please try again.',
+            ], 422);
         }
 
         $plant->update([
-            'health_status'    => $healthResult['health_status'] ?? null,
-            'health_notes'     => $healthResult['health_notes'] ?? null,
+            'health_status'     => $healthResult['health_status'],
+            'health_notes'      => $healthResult['health_notes'],
             'last_health_check' => now(),
         ]);
 
         return response()->json([
-            'success' => true,
-            'health_status'    => $healthResult['health_status'],
-            'health_notes'     => $healthResult['health_notes'],
-            'plant'            => $plant->fresh(),
+            'success'       => true,
+            'health_status' => $healthResult['health_status'],
+            'health_notes'  => $healthResult['health_notes'],
+            'plant'         => $plant->fresh(),
         ]);
+    }
+
+    /**
+     * Resolve a plant image_url to a real filesystem path.
+     * Handles the storage path mismatch between api/ and greeny-corner-backend/.
+     * Returns the real path string, or null if not found.
+     */
+    private function resolveImagePath(?string $imageUrl): ?string
+    {
+        if (!$imageUrl) return null;
+
+        if (str_starts_with($imageUrl, '/storage/')) {
+            $relative = ltrim(str_replace('/storage/', '', $imageUrl), '/');
+
+            // Primary: Storage::disk('public') path
+            $path = Storage::disk('public')->path($relative);
+            if (file_exists($path)) return $path;
+
+            // Fallback: api/ sibling directory storage (actual upload location on this server)
+            $apiPath = dirname(base_path()) . '/api/storage/app/public/' . $relative;
+            if (file_exists($apiPath)) return $apiPath;
+
+            // Second fallback: try relative to the web root
+            $webRoot = dirname(dirname(base_path()));
+            $altPath = $webRoot . '/api/storage/app/public/' . $relative;
+            if (file_exists($altPath)) return $altPath;
+
+            return null;
+        }
+
+        if (str_starts_with($imageUrl, 'http')) {
+            $tmpPath = tempnam(sys_get_temp_dir(), 'plant_img_') . '.jpg';
+            $content = @file_get_contents($imageUrl);
+            if ($content) {
+                file_put_contents($tmpPath, $content);
+                return $tmpPath;
+            }
+        }
+
+        return null;
     }
 
     public function identify(Request $request)
@@ -567,41 +658,125 @@ class PlantController extends Controller
                 }
             }
 
-            // Final fallback - return unknown plant
-            \Log::info('All identification methods failed - returning unknown plant');
-            $result = $this->getDefaultPlantInfo('Unknown Plant');
-            return $this->translatePlantData($result, $language);
+            // All identification methods failed — throw so the caller returns a proper error to the app
+            \Log::warning('All identification methods failed for image: ' . $imagePath);
+            throw new \RuntimeException('identification_failed');
 
+        } catch (\RuntimeException $e) {
+            throw $e; // re-throw identification_failed so store() can catch it
         } catch (\Exception $e) {
             \Log::error('Plant identification failed: ' . $e->getMessage());
-            $result = $this->getDefaultPlantInfo('Unknown Plant');
-            return $this->translatePlantData($result, $language);
+            throw new \RuntimeException('identification_failed');
         }
     }
 
     private function identifyWithFreeAPI($imagePath, $language)
     {
         try {
-            \Log::info('Using Pl@ntNet ONLY for MVP - single service approach');
-            
-            // ONLY Pl@ntNet API - no other services
             \Log::info('Calling Pl@ntNet API (20,000+ plants worldwide)');
             $plantNetResult = $this->identifyWithPlantNet($imagePath, $language);
-            
+
             if ($plantNetResult) {
-                $confidence = $plantNetResult['confidence'];
-                \Log::info('PlantNet result: ' . $plantNetResult['name'] . ' (confidence: ' . $confidence . ')');
-                
-                // Use PlantNet result regardless of confidence - it's the most accurate botanical database
-                \Log::info('Using PlantNet result - most reliable botanical identification source');
+                \Log::info('PlantNet result: ' . $plantNetResult['name'] . ' (confidence: ' . $plantNetResult['confidence'] . ')');
                 return $plantNetResult;
             }
-            
-            \Log::warning('All identification methods failed');
-            return null;
-            
+
+            // PlantNet confidence too low or failed — use Gemini vision to identify from the image
+            \Log::info('PlantNet did not return a confident result, falling back to Gemini vision identification');
+            return $this->identifyWithGeminiVision($imagePath, $language);
+
         } catch (\Exception $e) {
-            \Log::error('Pl@ntNet identification failed: ' . $e->getMessage());
+            \Log::error('identifyWithFreeAPI failed: ' . $e->getMessage());
+            return $this->identifyWithGeminiVision($imagePath, $language);
+        }
+    }
+
+    private function identifyWithGeminiVision(string $imagePath, string $language): ?array
+    {
+        $apiKey = env('OPENROUTER_API_KEY');
+        if (!$apiKey) {
+            \Log::warning('OpenRouter API key not configured, cannot use Gemini vision fallback');
+            return null;
+        }
+
+        $fullImagePath = file_exists($imagePath) ? $imagePath : \Storage::disk('public')->path($imagePath);
+        if (!file_exists($fullImagePath)) {
+            \Log::error('Image file not found for Gemini vision: ' . $fullImagePath);
+            return null;
+        }
+
+        try {
+            $imageData = base64_encode(file_get_contents($fullImagePath));
+            $mimeType = mime_content_type($fullImagePath) ?: 'image/jpeg';
+
+            $prompt = 'Identify the plant in this photo. Reply ONLY with valid JSON, no markdown: {"common_name":"most widely known English common name","name_ar":"الاسم الشائع للنبتة باللغة العربية","scientific_name":"Genus species","confidence":0.0_to_1.0}';
+
+            $decoded = $this->callOpenRouterWithFallback([
+                'messages' => [[
+                    'role' => 'user',
+                    'content' => [
+                        ['type' => 'text', 'text' => $prompt],
+                        ['type' => 'image_url', 'image_url' => ['url' => "data:{$mimeType};base64,{$imageData}"]],
+                    ],
+                ]],
+                'max_tokens' => 100,
+                'temperature' => 0.1,
+            ], $apiKey);
+
+            $text = $decoded['choices'][0]['message']['content'] ?? '';
+            $text = preg_replace('/```json|```/', '', $text);
+            $result = json_decode(trim($text), true);
+
+            if (!isset($result['common_name']) || !$result['common_name']) {
+                \Log::warning('Gemini vision identification returned no plant name');
+                return null;
+            }
+
+            $commonName    = $result['common_name'];
+            $nameAr        = $result['name_ar'] ?? null;
+            $scientificName = $result['scientific_name'] ?? $commonName;
+            $confidence    = floatval($result['confidence'] ?? 0.5);
+
+            \Log::info("Gemini vision identified: {$commonName} ({$scientificName}), confidence: {$confidence}");
+
+            // Get care details from Gemini using the identified name
+            $gemini = app(\App\Services\GeminiService::class);
+            $geminiData = $gemini->getBilingualPlantDetails($commonName);
+            $langData = $geminiData[$language] ?? $geminiData['en'] ?? null;
+
+            // If Gemini didn't return an Arabic name, resolve it now
+            if (!$nameAr) {
+                $nameAr = $this->resolveArabicName($commonName);
+            }
+
+            return [
+                'name'             => $commonName,
+                'name_ar'          => $nameAr,
+                'scientific_name'  => $scientificName,
+                'confidence'       => $confidence,
+                'common_names'     => [$commonName],
+                'description'      => $langData['description']   ?? '',
+                'watering'         => $langData['watering']       ?? '',
+                'sunlight'         => $langData['sunlight']       ?? '',
+                'soil'             => $langData['soil']           ?? '',
+                'temperature'      => $langData['temperature']    ?? '',
+                'climate'          => $langData['climate']        ?? '',
+                'diseases'         => $langData['diseases']       ?? '',
+                'pests'            => $langData['pests']          ?? '',
+                'propagation'      => $langData['propagation']    ?? '',
+                'pruning'          => $langData['pruning']        ?? '',
+                'toxicity'         => $langData['toxicity']       ?? '',
+                'care_tips'        => $langData['care_tips']      ?? '',
+                'care_info'        => $this->getCareInfoFromPlantName($commonName),
+                'raw_data'         => [
+                    'method'          => 'gemini_vision_fallback',
+                    'confidence'      => $confidence,
+                    'scientific_name' => $scientificName,
+                ],
+            ];
+
+        } catch (\Exception $e) {
+            \Log::error('Gemini vision identification failed: ' . $e->getMessage());
             return null;
         }
     }
@@ -754,7 +929,7 @@ class PlantController extends Controller
             }
             
             // Process the best result if we found one with acceptable confidence
-            $minConfidence = 0.01; // 1% minimum confidence threshold (very lenient)
+            $minConfidence = 0.15; // 15% minimum — below this PlantNet is guessing
 
             if ($bestResult && $bestConfidence >= $minConfidence) {
                 \Log::info('Using best PlantNet result with confidence: ' . $bestConfidence);
@@ -777,16 +952,28 @@ class PlantController extends Controller
                     }
                 }
                 
+                // If PlantNet has no common names, ask Gemini to resolve one
+                if (empty($commonNames) && env('GEMINI_API_KEY')) {
+                    $resolvedCommon = $this->resolveCommonNameFromScientific($scientificName);
+                    if ($resolvedCommon) {
+                        $commonNames = [$resolvedCommon];
+                    }
+                }
+
                 $displayName = !empty($commonNames) ? $commonNames[0] : $scientificName;
                 $familyName = $species['family']['scientificNameWithoutAuthor'] ?? '';
-                
+
                 \Log::info('PlantNet identified: ' . $displayName . ' (confidence: ' . $confidence . ')');
-                
+
+                // Resolve Arabic name so the app can display it without a translation API call
+                $nameAr = $this->resolveArabicName($displayName);
+
                 // Enhance with Perenual API data (only for English, to preserve PlantNet's Arabic content)
                 $perenualData = ($language === 'ar') ? null : $this->getPerenualPlantData($scientificName, $displayName);
-                
+
                 return [
                     'name' => $displayName,
+                    'name_ar' => $nameAr,
                     'confidence' => $confidence,
                     'common_names' => $commonNames,
                     'description' => $perenualData['description'] ?? $this->getPlantDescription($displayName, $language),
@@ -810,12 +997,66 @@ class PlantController extends Controller
             
             \Log::warning("PlantNet API: No results above confidence threshold ({$minConfidence}). Best confidence found: {$bestConfidence}");
             return null;
-            
+
         } catch (\Exception $e) {
             \Log::error('PlantNet API error: ' . $e->getMessage());
             return null;
         }
     }
+
+    private function resolveCommonNameFromScientific(string $scientificName): ?string
+    {
+        try {
+            $apiKey = env('GEMINI_API_KEY');
+            $apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+
+            $prompt = "What is the most widely used common name (in English) for the plant with scientific name \"{$scientificName}\"? Reply with only the common name, nothing else. If there is no well-known common name, reply with the scientific name.";
+
+            $response = \Illuminate\Support\Facades\Http::timeout(10)->post($apiUrl . '?key=' . $apiKey, [
+                'contents' => [['parts' => [['text' => $prompt]]]],
+                'generationConfig' => ['temperature' => 0.1, 'maxOutputTokens' => 32]
+            ]);
+
+            if ($response->successful()) {
+                $text = trim($response->json('candidates.0.content.parts.0.text') ?? '');
+                if ($text && strlen($text) < 80) {
+                    \Log::info("Resolved common name for {$scientificName}: {$text}");
+                    return $text;
+                }
+            }
+        } catch (\Exception $e) {
+            \Log::warning('resolveCommonNameFromScientific failed: ' . $e->getMessage());
+        }
+        return null;
+    }
+
+    private function resolveArabicName(string $commonName): ?string
+    {
+        try {
+            $apiKey = env('GEMINI_API_KEY');
+            if (!$apiKey) return null;
+
+            $apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+            $prompt = "What is the most widely used Arabic common name for the plant \"{$commonName}\"? Reply with only the Arabic name, nothing else.";
+
+            $response = \Illuminate\Support\Facades\Http::timeout(10)->post($apiUrl . '?key=' . $apiKey, [
+                'contents' => [['parts' => [['text' => $prompt]]]],
+                'generationConfig' => ['temperature' => 0.1, 'maxOutputTokens' => 32]
+            ]);
+
+            if ($response->successful()) {
+                $text = trim($response->json('candidates.0.content.parts.0.text') ?? '');
+                if ($text && strlen($text) < 100) {
+                    \Log::info("Resolved Arabic name for {$commonName}: {$text}");
+                    return $text;
+                }
+            }
+        } catch (\Exception $e) {
+            \Log::warning('resolveArabicName failed: ' . $e->getMessage());
+        }
+        return null;
+    }
+
 
     private function identifyWithPlantId($imagePath)
     {
@@ -4469,6 +4710,11 @@ class PlantController extends Controller
                 'temperature' => 0.1,
             ], $apiKey);
 
+            if (!$decoded) {
+                \Log::warning("Health check: OpenRouter returned null for plant '{$plantName}'");
+                return ['health_status' => null, 'health_notes' => null];
+            }
+
             $text = $decoded['choices'][0]['message']['content'] ?? '';
             $text = preg_replace('/```json|```/', '', $text);
             $result = json_decode(trim($text), true);
@@ -4487,7 +4733,9 @@ class PlantController extends Controller
                     'health_notes' => $healthNotes,
                 ];
             }
-        } catch (\Exception $e) {
+
+            \Log::warning("Health check: Gemini response missing health_status for '{$plantName}'. Raw: " . substr($text, 0, 200));
+        } catch (\Throwable $e) {
             \Log::warning('Health check with Gemini failed: ' . $e->getMessage());
         }
 
@@ -4521,12 +4769,16 @@ class PlantController extends Controller
             return response()->json(['success' => false, 'message' => 'AI service not configured'], 503);
         }
 
-        $prompt = "A {$plantName} has been diagnosed with: {$disease}.\nProvide a bilingual treatment guide as JSON (no markdown). ALL fields must be filled in both English and Arabic:\n{\"cause_en\":\"cause in English\",\"cause_ar\":\"السبب بالعربية\",\"symptoms_en\":\"symptoms in English\",\"symptoms_ar\":\"الأعراض بالعربية\",\"treatment_en\":[\"step 1\",\"step 2\",\"step 3\"],\"treatment_ar\":[\"الخطوة 1\",\"الخطوة 2\",\"الخطوة 3\"],\"prevention_en\":\"prevention in English\",\"prevention_ar\":\"الوقاية بالعربية\",\"recovery_time\":\"e.g. 2-4 weeks\",\"recovery_time_ar\":\"مثال: 2-4 أسابيع\",\"fertilizer_name\":\"specific product name\",\"fertilizer_name_ar\":\"اسم المنتج بالعربية\",\"fertilizer_type\":\"type in English\",\"fertilizer_type_ar\":\"النوع بالعربية\",\"fertilizer_application_en\":\"application steps in English\",\"fertilizer_application_ar\":\"خطوات التطبيق بالعربية\"}";
+        // Shorten the disease description — Gemini works better with a concise problem statement
+        // If health_notes is a long description, summarise it to ≤120 chars
+        $diseaseShort = mb_strlen($disease) > 120 ? mb_substr($disease, 0, 117) . '...' : $disease;
+
+        $prompt = "A {$plantName} plant has the following health problem: \"{$diseaseShort}\".\nRespond ONLY with a valid JSON object (no markdown, no extra text). All fields are required:\n{\"cause_en\":\"cause in English\",\"cause_ar\":\"السبب بالعربية\",\"symptoms_en\":\"visible symptoms in English\",\"symptoms_ar\":\"الأعراض المرئية بالعربية\",\"treatment_en\":[\"step 1\",\"step 2\",\"step 3\"],\"treatment_ar\":[\"الخطوة 1\",\"الخطوة 2\",\"الخطوة 3\"],\"prevention_en\":\"prevention tips in English\",\"prevention_ar\":\"نصائح الوقاية بالعربية\",\"recovery_time\":\"e.g. 2-4 weeks\",\"recovery_time_ar\":\"مثال: 2-4 أسابيع\",\"fertilizer_name\":\"recommended fertilizer name\",\"fertilizer_name_ar\":\"اسم السماد الموصى به بالعربية\",\"fertilizer_type\":\"fertilizer type in English\",\"fertilizer_type_ar\":\"نوع السماد بالعربية\",\"fertilizer_application_en\":\"how to apply in English\",\"fertilizer_application_ar\":\"طريقة التطبيق بالعربية\"}";
 
         try {
             $data = $this->callOpenRouterWithFallback([
                 'messages' => [['role' => 'user', 'content' => $prompt]],
-                'max_tokens' => 900,
+                'max_tokens' => 1500,
                 'temperature' => 0.2,
             ], $apiKey);
 

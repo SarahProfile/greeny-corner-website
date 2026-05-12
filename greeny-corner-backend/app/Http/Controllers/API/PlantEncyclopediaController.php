@@ -39,7 +39,7 @@ class PlantEncyclopediaController extends Controller
         ]);
     }
 
-    public function show(string $slug): JsonResponse
+    public function show(Request $request, string $slug): JsonResponse
     {
         $plant = PlantEncyclopedia::where('slug', $slug)->first();
 
@@ -49,7 +49,19 @@ class PlantEncyclopediaController extends Controller
 
         $plant->increment('view_count');
 
-        return response()->json($plant);
+        $data = $plant->toArray();
+
+        // When Arabic is requested, swap in translated fields where available
+        if ($request->input('lang') === 'ar') {
+            if (!empty($plant->name_ar))        $data['name']        = $plant->name_ar;
+            if (!empty($plant->description_ar)) $data['description'] = $plant->description_ar;
+        }
+
+        // Always expose both Arabic fields so the frontend can decide
+        $data['name_ar']        = $plant->name_ar;
+        $data['description_ar'] = $plant->description_ar;
+
+        return response()->json($data);
     }
 
     public function search(Request $request): JsonResponse
@@ -120,6 +132,7 @@ class PlantEncyclopediaController extends Controller
                 'id'              => $p->id,
                 'slug'            => $p->slug,
                 'name'            => $p->name,
+                'name_ar'         => $p->name_ar,
                 'scientific_name' => $p->scientific_name,
                 'image'           => $p->main_image,
                 'family'          => $p->family,
@@ -140,6 +153,7 @@ class PlantEncyclopediaController extends Controller
 
         return response()->json([
             'data'      => $results->items(),
+            'total'     => $results->total(),
             'last_page' => $results->lastPage(),
         ]);
     }
@@ -147,14 +161,21 @@ class PlantEncyclopediaController extends Controller
     private function toListItem(PlantEncyclopedia $p): array
     {
         $careInfo = $p->care_info ?? [];
+        $junk = ['species of', 'index of', 'list of', 'taxon', 'disambiguation', 'redirect'];
+        $commonNames = array_values(array_filter($p->common_names ?? [], fn($n) =>
+            strlen($n) > 2 &&
+            !array_filter($junk, fn($j) => str_contains(strtolower($n), $j))
+        ));
         return [
             'id'              => $p->id,
             'slug'            => $p->slug,
             'name'            => $p->name,
+            'name_ar'         => $p->name_ar,
             'scientific_name' => $p->scientific_name,
             'family'          => $p->family,
             'image'           => $p->main_image,
             'is_featured'     => $p->is_featured,
+            'common_names'    => array_slice($commonNames, 0, 3),
             'care_info'       => [
                 'watering_interval_days' => $careInfo['watering_interval_days'] ?? null,
                 'light'                  => $careInfo['light'] ?? null,

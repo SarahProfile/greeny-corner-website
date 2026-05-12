@@ -50,7 +50,7 @@ body {
 }
 
 [dir="rtl"] .text-right {
-  text-align: left;
+  text-align: right;
 }
 
 /* Fix for specific RTL spacing */

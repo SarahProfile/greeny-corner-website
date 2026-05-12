@@ -27,20 +27,24 @@ export default function MobileBottomNav() {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const navRef = useRef<HTMLElement>(null);
 
-  // Keep nav pinned to the actual visible viewport bottom on iOS Safari
+  // Keep nav pinned to the actual visible viewport bottom on iOS Safari (keyboard-only fix)
   useEffect(() => {
     const vv = (window as any).visualViewport as VisualViewport | undefined;
     if (!vv) return;
     const reposition = () => {
       if (!navRef.current) return;
-      const offset = window.innerHeight - vv.height - vv.offsetTop;
-      navRef.current.style.transform = `translateY(${-offset}px)`;
+      // Only apply correction when the keyboard is open (vv.height significantly less than window.innerHeight)
+      const keyboardVisible = vv.height < window.innerHeight - 100;
+      if (keyboardVisible) {
+        const offset = window.innerHeight - vv.height - vv.offsetTop;
+        navRef.current.style.transform = `translateY(${-offset}px)`;
+      } else {
+        navRef.current.style.transform = '';
+      }
     };
     vv.addEventListener('resize', reposition);
-    vv.addEventListener('scroll', reposition);
     return () => {
       vv.removeEventListener('resize', reposition);
-      vv.removeEventListener('scroll', reposition);
     };
   }, []);
 
