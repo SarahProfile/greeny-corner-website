@@ -6,7 +6,9 @@ import PlantSearch from './PlantSearch';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://api.greenycorner.ae/api';
 
-export const revalidate = 3600;
+// Long window on purpose — this listing barely changes, and with 446K+ plant
+// records behind it, every regeneration is expensive (Hobby plan CPU/ISR caps).
+export const revalidate = 604800; // 7 days
 
 interface PlantListItem {
   id: number;
@@ -34,7 +36,7 @@ interface PaginatedPlants {
 async function fetchPlants(params: Record<string, string>): Promise<PaginatedPlants> {
   try {
     const qs = new URLSearchParams({ limit: '24', ...params }).toString();
-    const res = await fetch(`${API}/encyclopedia/plants?${qs}`, { next: { revalidate: 3600 } });
+    const res = await fetch(`${API}/encyclopedia/plants?${qs}`, { next: { revalidate: 604800 } });
     if (!res.ok) return { data: [], total: 0, current_page: 1, last_page: 1 };
     return res.json();
   } catch {
@@ -54,7 +56,7 @@ async function fetchFamilies(): Promise<string[]> {
 
 async function fetchFeatured(): Promise<PlantListItem[]> {
   try {
-    const res = await fetch(`${API}/encyclopedia/featured`, { next: { revalidate: 3600 } });
+    const res = await fetch(`${API}/encyclopedia/featured`, { next: { revalidate: 604800 } });
     if (!res.ok) return [];
     return res.json();
   } catch {

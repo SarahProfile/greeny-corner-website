@@ -5,7 +5,9 @@ import { notFound } from 'next/navigation';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://api.greenycorner.ae/api';
 
-export const revalidate = 3600; // ISR: rebuild every hour, serve from edge cache
+// Long window on purpose — a plant's reference info basically never changes,
+// and with 446K+ records, every regeneration is expensive (Hobby plan CPU/ISR caps).
+export const revalidate = 604800; // 7 days
 
 interface CareInfo {
   watering_interval_days?: number;
@@ -66,7 +68,7 @@ interface SimilarPlant {
 
 async function fetchPlant(slug: string): Promise<EncyclopediaPlant | null> {
   try {
-    const res = await fetch(`${API}/encyclopedia/plants/${slug}`, { next: { revalidate: 3600 } });
+    const res = await fetch(`${API}/encyclopedia/plants/${slug}`, { next: { revalidate: 604800 } });
     if (res.status === 404) return null;
     if (!res.ok) return null;
     return res.json();
@@ -79,7 +81,7 @@ async function fetchWikipediaDescription(name: string): Promise<string | null> {
   try {
     const res = await fetch(
       `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(name.replace(/ /g, '_'))}`,
-      { next: { revalidate: 86400 }, headers: { 'User-Agent': 'GreenyCornerBot/1.0' } }
+      { next: { revalidate: 604800 }, headers: { 'User-Agent': 'GreenyCornerBot/1.0' } }
     );
     if (!res.ok) return null;
     const d = await res.json();
@@ -91,7 +93,7 @@ async function fetchWikipediaDescription(name: string): Promise<string | null> {
 
 async function fetchSimilar(slug: string): Promise<SimilarPlant[]> {
   try {
-    const res = await fetch(`${API}/encyclopedia/plants/${slug}/similar`, { next: { revalidate: 86400 } });
+    const res = await fetch(`${API}/encyclopedia/plants/${slug}/similar`, { next: { revalidate: 604800 } });
     if (!res.ok) return [];
     return res.json();
   } catch {
@@ -99,10 +101,15 @@ async function fetchSimilar(slug: string): Promise<SimilarPlant[]> {
   }
 }
 
+// Pre-renders only the first page (500 plants) at build time — the encyclopedia
+// has 446K+ records, and this ran for 5 pages (2,500 pages, x2 with the Arabic
+// route) on every single deploy. The rest of the catalog still works fine: any
+// slug not in this set renders on first visit and gets cached from then on
+// (dynamicParams defaults to true), it just isn't pre-built on every deploy.
 export async function generateStaticParams() {
   const slugs: { slug: string }[] = [];
   try {
-    for (let page = 1; page <= 5; page++) {
+    for (let page = 1; page <= 1; page++) {
       const res = await fetch(`${API}/encyclopedia/plants/slugs?page=${page}&limit=500`, { next: { revalidate: 86400 } });
       if (!res.ok) break;
       const data = await res.json();
