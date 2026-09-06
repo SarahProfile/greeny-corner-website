@@ -10,6 +10,22 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* Homepage palette (drawn from the real logo's greens) */
+  --color-greeny-forest-900: #12301a;
+  --color-greeny-forest-800: #1c4a28;
+  --color-greeny-forest-700: #228b22;
+  --color-greeny-lime-500: #54d460;
+  --color-greeny-lime-400: #7ee08a;
+  --color-greeny-lime-tint: #e7f6e4;
+  --color-greeny-paper: #fafaf3;
+  --color-greeny-ink: #16241a;
+  --color-greeny-ink-soft: #4f5d4f;
+  --color-greeny-ink-faint: #8a9587;
+  --color-greeny-line: #e1e6d6;
+  --color-greeny-gold: #e8b23a;
+  --color-greeny-on-dark: #f3f8ee;
+  --color-greeny-on-dark-soft: #c9dac3;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -82,4 +98,86 @@ body {
 [dir="rtl"] .-mr-1 {
   margin-right: 0;
   margin-left: -0.25rem;
+}
+
+/* Fixed-direction demo mockups (e.g. the bilingual section's side-by-side
+   phones) must ignore the page's own RTL flip above — they illustrate both
+   directions at once regardless of the viewer's selected language. */
+.dir-ltr-fixed,
+.dir-ltr-fixed .flex {
+  direction: ltr;
+}
+
+/* Homepage motion system.
+   Content is visible by default. Elements only go to their hidden,
+   about-to-reveal state once JS confirms it's ready to run the reveal
+   (adds .reveal-ready to a shared ancestor) — so if that JS ever fails to
+   run or the observer never fires for some reason, the page still renders
+   fully visible instead of staying permanently blank. */
+.reveal-ready [data-reveal],
+.reveal-ready [data-reveal-scale] {
+  opacity: 0;
+  transition: opacity 0.7s cubic-bezier(0.16, 0.84, 0.44, 1), transform 0.7s cubic-bezier(0.16, 0.84, 0.44, 1);
+}
+.reveal-ready [data-reveal] {
+  transform: translateY(28px);
+}
+.reveal-ready [data-reveal-scale] {
+  transform: scale(0.94) translateY(14px);
+}
+.reveal-ready [data-reveal].is-visible,
+.reveal-ready [data-reveal-scale].is-visible {
+  opacity: var(--final-opacity, 1);
+  transform: none;
+}
+
+@keyframes greeny-phone-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+.animate-phone-float {
+  animation: greeny-phone-float 6s ease-in-out infinite;
+}
+
+@keyframes greeny-glow-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.35; }
+  50% { transform: scale(1.08); opacity: 0.5; }
+}
+.animate-glow-pulse {
+  animation: greeny-glow-pulse 5s ease-in-out infinite;
+}
+
+@keyframes greeny-blob-float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-14px) rotate(4deg); }
+}
+@keyframes greeny-blob-float-slow {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-20px) rotate(-3deg); }
+}
+.animate-blob { animation: greeny-blob-float 7s ease-in-out infinite; }
+.animate-blob-slow { animation: greeny-blob-float-slow 9s ease-in-out infinite; }
+
+@keyframes greeny-cta-ping {
+  0% { transform: scale(1); opacity: 0.5; }
+  100% { transform: scale(1.7); opacity: 0; }
+}
+.animate-cta-ping {
+  animation: greeny-cta-ping 2.4s ease-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-reveal],
+  [data-reveal-scale] {
+    transition: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .animate-phone-float,
+  .animate-glow-pulse,
+  .animate-blob,
+  .animate-blob-slow,
+  .animate-cta-ping {
+    animation: none !important;
+  }
 }
