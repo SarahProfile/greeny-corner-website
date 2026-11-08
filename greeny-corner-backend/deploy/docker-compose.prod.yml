@@ -27,6 +27,8 @@ services:
     restart: unless-stopped
     env_file: laravel.env
     command: ["php", "artisan", "queue:work", "--sleep=3", "--tries=3", "--max-time=3600"]
+    healthcheck:
+      disable: true
     volumes:
       - uploads:/var/www/html/storage/app
       - ./secrets/firebase.json:/var/www/html/storage/greeny-corner-firebase-adminsdk-fbsvc-d29dc8e3b0.json:ro

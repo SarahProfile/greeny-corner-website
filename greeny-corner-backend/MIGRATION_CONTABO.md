@@ -15,7 +15,7 @@ The server already runs **mekna.app** as a Docker Compose stack (`/home/deploy/m
 
 App changes made for this: `Dockerfile`, `.dockerignore`, `deploy/docker-compose.prod.yml`, and `TRUSTED_PROXIES` support in `bootstrap/app.php` (so Laravel sees the real client IP / https behind Caddy; no effect when the var is unset).
 
-## Cutover steps (DNS is the only thing that makes it live)
+## Cutover steps (DONE 2026-11-08 — api.greenycorner.ae now served from Contabo)
 1. Lower the TTL of the `api` DNS record to 300s (do this a few hours before).
 2. Maintenance window (~5 min): put the Hostinger API in maintenance, run the **final sync** — re-dump DB and re-copy `storage/app` (commands below), restart `greeny-api`/`greeny-worker`.
 3. Add the Caddy block (candidate saved at `/home/deploy/greeny/Caddyfile.candidate`, original backed up as `Caddyfile.mekna.backup`) to `/home/deploy/mekna/deploy/Caddyfile`, then `docker exec mekna-caddy-1 caddy reload --config /etc/caddy/Caddyfile` (graceful, no mekna downtime). Caddy gets the Let's Encrypt cert once DNS resolves.
@@ -44,6 +44,11 @@ rsync -az --exclude='.env*' --exclude=vendor --exclude=storage/app --exclude=tes
 ssh deploy@77.237.245.10 'cd /home/deploy/greeny && docker compose -f docker-compose.prod.yml build && docker compose -f docker-compose.prod.yml up -d && docker compose -f docker-compose.prod.yml exec greeny-api php artisan migrate --force'
 ```
 (Code is baked into the image with OPcache on, so a rebuild + `up -d` is required for changes to take effect.)
+
+## Cutover notes (learned 2026-11-08)
+- Caddy requested the cert the moment it was reloaded, while DNS still pointed at Hostinger, and failed. Fix: after flipping the A record run `docker exec mekna-caddy-1 caddy reload --force --config /etc/caddy/Caddyfile` (no downtime). Better: flip DNS first, then reload.
+- Never `sed -i` mekna's Caddyfile: it replaces the inode and the container keeps seeing the old file. Use `cp`/`cat >` onto the existing file.
+- Hostinger rollback: delete `api/storage/framework/down` there and set the `api` A record back to 92.113.19.61 (TTL 300). Hostinger DB/files were not modified.
 
 ## Known leftovers / follow-ups
 - `PlantController::resolveImagePath()` has fallbacks for Hostinger's `api/` folder layout; harmless on Contabo (the primary `Storage::disk('public')` path is used) — can be removed later.
