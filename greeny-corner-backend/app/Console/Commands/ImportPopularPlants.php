@@ -209,6 +209,10 @@ class ImportPopularPlants extends Command
 
             $existing = PlantEncyclopedia::where('name', $data['name'])
                 ->orWhere('slug', Str::slug($data['name']))
+                ->orWhere('scientific_name', $data['name'])
+                ->orWhere(function ($q) use ($data) {
+                    if ($data['scientific_name']) $q->where('scientific_name', $data['scientific_name']);
+                })
                 ->first();
 
             if ($existing) {

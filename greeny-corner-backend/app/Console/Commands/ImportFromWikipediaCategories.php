@@ -123,19 +123,23 @@ class ImportFromWikipediaCategories extends Command
 
     private function getWikipediaData(string $title): ?array
     {
+        // Skip list/collection/garden/organization pages — not individual plants
+        if (preg_match('/^(List of|Lists of|History of|Index of|Outline of|.+\s(Garden|Conservatory|Arboretum|Institute|Organization|Society|Association|Museum|Park|Collection)$)/i', $title)) {
+            return null;
+        }
+
         try {
             $res = Http::timeout(10)
                 ->withHeaders(['User-Agent' => 'GreenyCornerBot/1.0 (plant encyclopedia)'])
                 ->get('https://en.wikipedia.org/w/api.php', [
                     'action'      => 'query',
                     'titles'      => $title,
-                    'prop'        => 'extracts|pageimages|categories|revisions',
+                    'prop'        => 'extracts|pageimages|categories',
                     'exintro'     => true,
-                    'exchars'     => 600,
+                    'exchars'     => 800,
+                    'pithumbsize' => 800,
                     'piprop'      => 'original',
-                    'rvprop'      => 'content',
-                    'rvsection'   => '0',
-                    'cllimit'     => 20,
+                    'cllimit'     => 30,
                     'format'      => 'json',
                     'redirects'   => true,
                 ]);
@@ -148,32 +152,33 @@ class ImportFromWikipediaCategories extends Command
             if (!$page || isset($page['missing'])) return null;
 
             $extract = strip_tags($page['extract'] ?? '');
-            if (strlen($extract) < 50) return null;
+            if (strlen($extract) < 80) return null;
 
-            // Check it's actually about a plant
+            // Must be categorised as a plant species/genus/family — not just a location or list
             $categories = array_column($page['categories'] ?? [], 'title');
             $catStr     = strtolower(implode(' ', $categories));
-            $plantWords = ['plant', 'flora', 'tree', 'herb', 'flower', 'shrub', 'fern', 'moss', 'alga', 'grass', 'palm', 'cactus', 'orchid', 'succulent', 'vine', 'fruit', 'vegetable', 'species', 'genus', 'family'];
-            $isPlant    = false;
-            foreach ($plantWords as $w) {
+            $isPlant = false;
+            foreach (['plant', 'flora', 'tree', 'herb', 'flower', 'shrub', 'fern', 'moss', 'alga', 'grass', 'palm', 'cactus', 'orchid', 'succulent', 'vine', 'fruit', 'vegetable', 'species', 'genus', 'family (botany)', 'cultivar'] as $w) {
                 if (str_contains($catStr, $w)) { $isPlant = true; break; }
             }
-            // Also accept if description mentions plant keywords
+            // Fallback: extract starts with a binomial name pattern or says "is a species/genus"
             if (!$isPlant) {
-                $extractLow = strtolower($extract);
-                foreach (['plant', 'species', 'genus', 'family', 'flowering', 'leaf', 'leaves', 'botanical', 'native to', 'grow'] as $w) {
-                    if (str_contains($extractLow, $w)) { $isPlant = true; break; }
-                }
+                if (preg_match('/^[A-Z][a-z]+ [a-z]+ is (a |an )/u', $extract)) $isPlant = true;
+                if (preg_match('/\bis a (species|genus|cultivar|variety|plant|tree|shrub|herb|fern|palm|vine)\b/i', $extract)) $isPlant = true;
             }
             if (!$isPlant) return null;
 
-            // Extract scientific name from first parenthetical if present
+            // Extract scientific name from first parenthetical (e.g. "Rose (Rosa ×hybrida)")
             $scientificName = null;
             if (preg_match('/\(([A-Z][a-z]+ [a-z]+(?:\s[a-z]+)?)\)/', $extract, $m)) {
                 $scientificName = $m[1];
             }
+            // If title itself looks like a binomial name, use it as scientific name
+            if (!$scientificName && preg_match('/^[A-Z][a-z]+ [a-z]+$/', $title)) {
+                $scientificName = $title;
+            }
 
-            $image = $page['original']['source'] ?? null;
+            $image = $page['original']['source'] ?? ($page['thumbnail']['source'] ?? null);
 
             return [
                 'name'            => $title,
@@ -201,9 +206,10 @@ class ImportFromWikipediaCategories extends Command
     {
         $name = $data['name'];
 
-        // Check by Wikipedia URL or name
+        // Check by Wikipedia URL, common name, or scientific name
         $existing = PlantEncyclopedia::where('wikipedia_url', $data['wikipedia_url'])
             ->orWhere('name', $name)
+            ->orWhere('scientific_name', $name)
             ->first();
 
         if ($existing) {

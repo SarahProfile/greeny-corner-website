@@ -2,24 +2,24 @@
 
 namespace App\Services;
 
-use Stichoza\GoogleTranslate\GoogleTranslate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
 
 class TranslationService
 {
-    private $translator;
+    private GeminiService $gemini;
 
     /**
      * Create a new TranslationService instance.
+     *
+     * Previously used stichoza/google-translate-php, which scrapes Google Translate's public
+     * endpoint with no API key. That's blocked with 429s from this server's IP in production
+     * (and the package was also missing from api/'s deployed vendor tree). Routes through
+     * OpenRouter instead, which is already proven reliable elsewhere in this app.
      */
-    public function __construct()
+    public function __construct(GeminiService $gemini)
     {
-        // Initialize Google Translate
-        // The package will be installed via: composer require stichoza/google-translate-php
-        if (class_exists(GoogleTranslate::class)) {
-            $this->translator = new GoogleTranslate('ar'); // Default target: Arabic
-        }
+        $this->gemini = $gemini;
     }
 
     /**
@@ -37,42 +37,60 @@ class TranslationService
             return $text;
         }
 
-        // If translator is not available (package not installed yet), return original text
-        if (!$this->translator) {
-            Log::warning('Google Translate package not installed. Returning original text.');
+        // Text that is already Arabic must never be machine-translated "from English" again
+        if ($targetLang === 'ar' && preg_match('/\p{Arabic}/u', $text)) {
+            return $text;
+        }
+
+        if (trim($text) === '') {
             return $text;
         }
 
         // Create a cache key based on text and languages
         $cacheKey = 'translation_' . md5($text . $sourceLang . $targetLang);
 
+        $cached = Cache::get($cacheKey);
+        if ($cached !== null) {
+            return $cached;
+        }
+
+        $langName = $targetLang === 'ar' ? 'Arabic' : $targetLang;
+        $prompt = "Translate the following plant-care text from English to {$langName}. "
+            . "Reply with ONLY the translation — no quotes, no explanation, no markdown:\n\n{$text}";
+
         try {
-            // Try to get from cache first (cache for 30 days)
-            return Cache::remember($cacheKey, 60 * 60 * 24 * 30, function () use ($text, $targetLang, $sourceLang) {
-                $this->translator->setSource($sourceLang);
-                $this->translator->setTarget($targetLang);
-
-                $translated = $this->translator->translate($text);
-
-                Log::info('Translation successful', [
-                    'original' => substr($text, 0, 50),
-                    'translated' => substr($translated, 0, 50),
-                    'from' => $sourceLang,
-                    'to' => $targetLang
-                ]);
-
-                return $translated;
-            });
-        } catch (\Exception $e) {
+            // Free tier first (this runs on every plant page view, often many strings per
+            // plant — keeping it $0 when possible matters), paid model if that's rate-limited.
+            $translated = $this->gemini->completeFree($prompt, 500) ?? $this->gemini->complete($prompt, 500);
+        } catch (\Throwable $e) {
             Log::error('Translation failed: ' . $e->getMessage(), [
                 'text' => substr($text, 0, 50),
                 'from' => $sourceLang,
-                'to' => $targetLang
+                'to' => $targetLang,
             ]);
-
-            // Return original text if translation fails
             return $text;
         }
+
+        if (!$translated) {
+            Log::warning('Translation returned nothing (free and paid models both unavailable)', [
+                'text' => substr($text, 0, 50),
+            ]);
+            // Deliberately not cached: a transient outage shouldn't lock in the failure for 30 days.
+            return $text;
+        }
+
+        $translated = trim($translated, " \t\n\r\0\x0B\"'\xE2\x80\x9C\xE2\x80\x9D");
+
+        Log::info('Translation successful', [
+            'original' => substr($text, 0, 50),
+            'translated' => substr($translated, 0, 50),
+            'from' => $sourceLang,
+            'to' => $targetLang,
+        ]);
+
+        Cache::put($cacheKey, $translated, now()->addDays(30));
+
+        return $translated;
     }
 
     /**
@@ -161,6 +179,16 @@ class TranslationService
             'watering_interval_days',
             'method',           // Technical identifiers
             'raw_data',         // Keep raw data untranslated
+            'verified_by',                // Internal audit marker (e.g. "gemini_vision_cross_check")
+            'previous_scientific_name',   // Internal audit trail, stays in Latin like scientific_name
+            // Plant name fields are resolved (English + Arabic) when the plant is identified.
+            // Machine-translating them corrupts the names, so the client picks the right one.
+            'name',
+            'name_ar',
+            'name_en',
+            'arabic_name',
+            'common_name_resolved',
+            'common_names',
         ];
 
         // Translate the plant data

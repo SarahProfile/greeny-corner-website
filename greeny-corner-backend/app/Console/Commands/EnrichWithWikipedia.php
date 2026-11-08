@@ -10,7 +10,8 @@ class EnrichWithWikipedia extends Command
 {
     protected $signature = 'plants:enrich-wikipedia
                             {--limit=100 : Number of plants to process}
-                            {--overwrite : Overwrite existing descriptions}';
+                            {--overwrite : Overwrite existing descriptions}
+                            {--min-views=0 : Only process plants with at least this many views}';
 
     protected $description = 'Enrich plant encyclopedia entries with Wikipedia descriptions and images';
 
@@ -18,10 +19,14 @@ class EnrichWithWikipedia extends Command
     {
         $limit     = (int) $this->option('limit');
         $overwrite = (bool) $this->option('overwrite');
+        $minViews  = (int) $this->option('min-views');
 
         $query = PlantEncyclopedia::whereNotNull('scientific_name');
         if (!$overwrite) {
             $query->whereNull('description');
+        }
+        if ($minViews > 0) {
+            $query->where('view_count', '>=', $minViews);
         }
 
         $plants   = $query->orderByDesc('view_count')->limit($limit)->get();

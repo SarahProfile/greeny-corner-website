@@ -7,6 +7,7 @@ use App\Models\Plant;
 use App\Models\CareSchedule;
 use App\Services\TranslationService;
 use App\Services\GeminiService;
+use App\Services\PlantNameService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
@@ -29,6 +30,18 @@ class PlantController extends Controller
         $language = $request->input('language') ?? $request->header('Accept-Language', 'en');
         // Extract just the language code (e.g., 'ar' from 'ar-AE' or 'en' from 'en-US')
         $language = substr($language, 0, 2);
+
+        // Every plant gets a fertilizing schedule (like watering), and plants stored with a
+        // scientific / wrong-language name get their common name resolved. AI lookups are
+        // limited to one plant per list request so the list stays fast; the rest are picked
+        // up on the next requests (throttled per plant) or by `php artisan plants:fix-names`.
+        $aiBudget = 1;
+        foreach ($plants as $plant) {
+            $this->ensureFertilizingSchedule($plant);
+            if ($this->fixPlantNameIfScientific($plant, $aiBudget > 0)) {
+                $aiBudget--;
+            }
+        }
 
         // Translate plant data if language is not English
         if ($language !== 'en') {
@@ -93,6 +106,8 @@ class PlantController extends Controller
         try {
             $validated = $request->validate([
                 'image' => 'required|image|mimes:jpeg,png,jpg|max:5120', // Increased to 5MB
+                // The user may have watered the plant before installing the app: count from that day, not from today
+                'last_watered_date' => 'sometimes|nullable|date_format:Y-m-d|before_or_equal:tomorrow|after_or_equal:-1 year',
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             \Log::error('Validation failed', [
@@ -144,10 +159,21 @@ class PlantController extends Controller
         // Use AI-determined watering interval or default to 7 days
         $wateringInterval = $plantData['care_info']['watering_interval_days'] ?? 7;
 
+        // Fertilizing works like watering: it has an interval and a due date from day one
+        $fertilizingInterval = (int) ($plantData['care_info']['fertilizing_interval_days'] ?? 30);
+        $fertilizingInterval = max(7, min(365, $fertilizingInterval ?: 30));
+
+        $lastWatered = !empty($validated['last_watered_date'])
+            ? Carbon::parse($validated['last_watered_date'], 'UTC')->setTime(12, 0)
+            : null;
+
         CareSchedule::create([
             'plant_id' => $plant->id,
             'watering_interval_days' => $wateringInterval,
-            'next_watering_date' => Carbon::now()->addDays($wateringInterval),
+            'last_watered_date' => $lastWatered,
+            'next_watering_date' => $this->nextDueDate($lastWatered, (int) $wateringInterval, Carbon::now()),
+            'fertilizing_interval_days' => $fertilizingInterval,
+            'next_fertilizing_date' => Carbon::now()->addDays($fertilizingInterval),
         ]);
 
         return response()->json($plant->load('careSchedule'), 201);
@@ -163,6 +189,7 @@ class PlantController extends Controller
         $language = substr($language, 0, 2);
 
         // Fix existing plants that were saved with a scientific name instead of common name
+        $this->ensureFertilizingSchedule($plant);
         $this->fixPlantNameIfScientific($plant);
 
         // Translate plant data if language is not English
@@ -173,47 +200,33 @@ class PlantController extends Controller
         return response()->json($plant);
     }
 
-    private function fixPlantNameIfScientific(Plant $plant): void
+    /**
+     * Plants created before every plant had a fertilizing schedule only had watering.
+     * Give them one so fertilizing behaves like watering (due date, status, reminders).
+     */
+    private function ensureFertilizingSchedule(Plant $plant): void
     {
-        // Scientific names have exactly two Latin words (Genus species), e.g. "Heptapleurum arboricola"
-        // Common names rarely match this pattern — if it does, resolve and update the DB record
-        $name = $plant->name ?? '';
-        $apiData = $plant->api_data ?? [];
-
-        $looksScientific = preg_match('/^[A-Z][a-z]+ [a-z]+$/', $name);
-        $hasCommonName = !empty($apiData['name_ar']) || !empty($apiData['common_name_resolved']);
-
-        if (!$looksScientific && $hasCommonName) {
-            return; // Nothing to fix
+        $schedule = $plant->careSchedule;
+        if (!$schedule || $schedule->next_fertilizing_date) {
+            return;
         }
 
-        if ($looksScientific && env('GEMINI_API_KEY')) {
-            $commonName = $this->resolveCommonNameFromScientific($name);
-            if ($commonName && $commonName !== $name) {
-                $nameAr = $this->resolveArabicName($commonName);
+        $interval = (int) ($schedule->fertilizing_interval_days ?: 30);
+        $schedule->update([
+            'fertilizing_interval_days' => $interval,
+            'next_fertilizing_date' => Carbon::now()->addDays($interval),
+        ]);
+    }
 
-                $plant->name = $commonName;
-                $updatedApiData = is_array($apiData) ? $apiData : [];
-                $updatedApiData['name_ar'] = $nameAr ?? ($updatedApiData['name_ar'] ?? null);
-                $updatedApiData['common_name_resolved'] = $commonName;
-                $plant->api_data = $updatedApiData;
-                $plant->save();
-
-                \Log::info("Fixed scientific name '{$name}' → common name '{$commonName}' for plant ID {$plant->id}");
-                return;
-            }
-        }
-
-        // Even if name is fine, backfill name_ar if it's missing
-        if (empty($apiData['name_ar']) && env('GEMINI_API_KEY')) {
-            $nameAr = $this->resolveArabicName($name);
-            if ($nameAr) {
-                $updatedApiData = is_array($apiData) ? $apiData : [];
-                $updatedApiData['name_ar'] = $nameAr;
-                $plant->api_data = $updatedApiData;
-                $plant->save();
-            }
-        }
+    /**
+     * Make sure plant.name / api_data.name are the English COMMON name and api_data.name_ar
+     * is the Arabic common name (see PlantNameService::fixPlant).
+     *
+     * @return bool true when an AI lookup was attempted (used to budget list requests)
+     */
+    private function fixPlantNameIfScientific(Plant $plant, bool $allowAi = true): bool
+    {
+        return app(PlantNameService::class)->fixPlant($plant, $allowAi);
     }
 
     public function destroy(Request $request, $id)
@@ -241,8 +254,9 @@ class PlantController extends Controller
         }
 
         // Update next watering date and record last watered date
+        // NB: addDays() mutates — use a copy so last_watered_date stays "now"
         $now = Carbon::now();
-        $nextWateringDate = $now->addDays($plant->careSchedule->watering_interval_days);
+        $nextWateringDate = $now->copy()->addDays($plant->careSchedule->watering_interval_days);
         $plant->careSchedule->update([
             'next_watering_date' => $nextWateringDate,
             'last_watered_date' => $now,
@@ -265,7 +279,7 @@ class PlantController extends Controller
 
         // Update next fertilizing date and record last fertilized date
         $now = Carbon::now();
-        $nextFertilizingDate = $now->addDays($plant->careSchedule->fertilizing_interval_days ?? 30);
+        $nextFertilizingDate = $now->copy()->addDays($plant->careSchedule->fertilizing_interval_days ?? 30);
         $plant->careSchedule->update([
             'next_fertilizing_date' => $nextFertilizingDate,
             'last_fertilized_date' => $now,
@@ -288,7 +302,7 @@ class PlantController extends Controller
 
         // Update next tilling date and record last tilled date
         $now = Carbon::now();
-        $nextTillingDate = $now->addDays($plant->careSchedule->tilling_interval_days ?? 90);
+        $nextTillingDate = $now->copy()->addDays($plant->careSchedule->tilling_interval_days ?? 90);
         $plant->careSchedule->update([
             'next_tilling_date' => $nextTillingDate,
             'last_tilled_date' => $now,
@@ -301,15 +315,56 @@ class PlantController extends Controller
         ], 200);
     }
 
+    /**
+     * Save what the plant actually gets where it lives. The app compares this with the species'
+     * preferred light / humidity and tells the user what to change. Send null to clear a value.
+     */
+    public function updateEnvironment(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'light_level' => 'sometimes|nullable|in:low,medium,bright,direct',
+            'humidity_level' => 'sometimes|nullable|in:low,medium,high',
+        ]);
+
+        $plant = $request->user()->plants()->with('careSchedule')->findOrFail($id);
+
+        $plant->update($validated + ['environment_updated_at' => Carbon::now()]);
+
+        return response()->json([
+            'message' => 'Environment updated successfully',
+            'plant' => $plant->fresh()->load('careSchedule'),
+        ], 200);
+    }
+
+    /**
+     * Next due date after the user changes an interval: counted from the last time the task was done
+     * (watered 3 days ago + new 10-day interval = due in 7 days). A task never done starts counting today.
+     * A date already in the past stays in the past, so the plant correctly shows as overdue.
+     */
+    private function nextDueDate($lastDone, int $intervalDays, Carbon $now): Carbon
+    {
+        $base = $lastDone ? Carbon::parse($lastDone) : $now;
+
+        return $base->copy()->addDays($intervalDays);
+    }
+
     public function updateSchedule(Request $request, $id)
     {
         $validated = $request->validate([
-            'watering_interval_days' => 'sometimes|integer|min:1|max:30',
+            'watering_interval_days' => 'sometimes|integer|min:1|max:90',
             'fertilizing_interval_days' => 'sometimes|integer|min:7|max:365',
             'tilling_interval_days' => 'sometimes|integer|min:14|max:365',
             'watering_notifications_enabled' => 'sometimes|boolean',
             'fertilizing_notifications_enabled' => 'sometimes|boolean',
             'tilling_notifications_enabled' => 'sometimes|boolean',
+            // The exact day the user wants the task due next. 'yesterday' tolerates the user being a timezone ahead of the server.
+            'next_watering_date' => 'sometimes|date_format:Y-m-d|after_or_equal:yesterday',
+            'next_fertilizing_date' => 'sometimes|date_format:Y-m-d|after_or_equal:yesterday',
+            'next_tilling_date' => 'sometimes|date_format:Y-m-d|after_or_equal:yesterday',
+            // The day it was last done (possibly before the app was installed). The next day is counted from it.
+            'last_watered_date' => 'sometimes|date_format:Y-m-d|before_or_equal:tomorrow|after_or_equal:-1 year',
+            'last_fertilized_date' => 'sometimes|date_format:Y-m-d|before_or_equal:tomorrow|after_or_equal:-1 year',
+            'last_tilled_date' => 'sometimes|date_format:Y-m-d|before_or_equal:tomorrow|after_or_equal:-1 year',
         ]);
 
         $plant = $request->user()->plants()->with('careSchedule')->findOrFail($id);
@@ -321,22 +376,34 @@ class PlantController extends Controller
         $updateData = [];
         $now = Carbon::now();
 
-        // Update watering schedule if provided
-        if (isset($validated['watering_interval_days'])) {
-            $updateData['watering_interval_days'] = $validated['watering_interval_days'];
-            $updateData['next_watering_date'] = $now->addDays($validated['watering_interval_days']);
-        }
+        // Per task: a new interval and/or a new "last done" day re-derives the next day (last + interval),
+        // unless the user also picked the next day explicitly, which always wins. Noon UTC keeps a chosen
+        // calendar day stable for users in (almost) any timezone.
+        $tasks = [
+            'watering' => ['interval' => 'watering_interval_days', 'next' => 'next_watering_date', 'last' => 'last_watered_date', 'default' => 7],
+            'fertilizing' => ['interval' => 'fertilizing_interval_days', 'next' => 'next_fertilizing_date', 'last' => 'last_fertilized_date', 'default' => 30],
+            'tilling' => ['interval' => 'tilling_interval_days', 'next' => 'next_tilling_date', 'last' => 'last_tilled_date', 'default' => 90],
+        ];
+        $schedule = $plant->careSchedule;
+        $atNoon = fn ($day) => Carbon::parse($day, 'UTC')->setTime(12, 0);
 
-        // Update fertilizing schedule if provided
-        if (isset($validated['fertilizing_interval_days'])) {
-            $updateData['fertilizing_interval_days'] = $validated['fertilizing_interval_days'];
-            $updateData['next_fertilizing_date'] = $now->addDays($validated['fertilizing_interval_days']);
-        }
+        foreach ($tasks as $f) {
+            $newInterval = $validated[$f['interval']] ?? null;
+            $newLast = isset($validated[$f['last']]) ? $atNoon($validated[$f['last']]) : null;
 
-        // Update tilling schedule if provided
-        if (isset($validated['tilling_interval_days'])) {
-            $updateData['tilling_interval_days'] = $validated['tilling_interval_days'];
-            $updateData['next_tilling_date'] = $now->addDays($validated['tilling_interval_days']);
+            if ($newInterval !== null) {
+                $updateData[$f['interval']] = $newInterval;
+            }
+            if ($newLast) {
+                $updateData[$f['last']] = $newLast;
+            }
+
+            if (isset($validated[$f['next']])) {
+                $updateData[$f['next']] = $atNoon($validated[$f['next']]);
+            } elseif ($newInterval !== null || $newLast) {
+                $interval = (int) ($newInterval ?? $schedule->{$f['interval']} ?? $f['default']);
+                $updateData[$f['next']] = $this->nextDueDate($newLast ?? $schedule->{$f['last']}, $interval, $now);
+            }
         }
 
         // Update notification preferences
@@ -454,8 +521,9 @@ class PlantController extends Controller
             return response()->json(['success' => false, 'message' => 'Plant image not accessible'], 422);
         }
 
-        $isTemp = isset($imagePath['is_temp']) && $imagePath['is_temp'];
-        $realPath = is_array($imagePath) ? $imagePath['path'] : $imagePath;
+        $realPath = $imagePath;
+        // resolveImagePath() downloads remote images into the system temp dir
+        $isTemp = str_starts_with($realPath, sys_get_temp_dir());
 
         $healthResult = $this->checkHealthWithGemini($realPath, $plant->name, $language);
 
@@ -621,43 +689,8 @@ class PlantController extends Controller
                 return $result;
             }
 
-            // Fallback to Gemini AI if PlantNet is not configured
-            if (env('GEMINI_API_KEY')) {
-                \Log::info('PlantNet not available, trying Gemini AI identification');
-                $gemini = app(\App\Services\GeminiService::class);
-
-                // Use a generic plant name for Gemini to provide care info
-                $plantName = 'Common Houseplant';
-                $geminiData = $gemini->getBilingualPlantDetails($plantName);
-
-                if ($geminiData && isset($geminiData[$language])) {
-                    return [
-                        'name' => $plantName,
-                        'scientific_name' => null,
-                        'confidence' => 0.5,
-                        'description' => $geminiData[$language]['description'] ?? 'A common houseplant',
-                        'watering' => $geminiData[$language]['watering'] ?? 'Water when soil is dry',
-                        'sunlight' => $geminiData[$language]['sunlight'] ?? 'Bright indirect light',
-                        'soil' => $geminiData[$language]['soil'] ?? 'Well-draining potting mix',
-                        'temperature' => $geminiData[$language]['temperature'] ?? '18-24°C',
-                        'climate' => $geminiData[$language]['climate'] ?? 'Indoor',
-                        'diseases' => $geminiData[$language]['diseases'] ?? 'Root rot, leaf spots',
-                        'pests' => $geminiData[$language]['pests'] ?? 'Spider mites, aphids',
-                        'propagation' => $geminiData[$language]['propagation'] ?? 'Stem cuttings',
-                        'pruning' => $geminiData[$language]['pruning'] ?? 'Remove dead leaves',
-                        'toxicity' => $geminiData[$language]['toxicity'] ?? 'Check for specific toxicity',
-                        'care_tips' => $geminiData[$language]['care_tips'] ?? 'Provide consistent care',
-                        'care_info' => [
-                            'watering_interval_days' => 7,
-                            'light' => $geminiData[$language]['sunlight'] ?? 'Bright indirect light',
-                            'humidity' => 'Moderate',
-                            'temperature' => $geminiData[$language]['temperature'] ?? '18-24°C',
-                            'care_tips' => $geminiData[$language]['care_tips'] ?? 'Provide consistent care'
-                        ]
-                    ];
-                }
-            }
-
+            // No generic "Common Houseplant" fallback: a wrong/blank identification is worse than
+            // an honest error, which the app already handles (identification_failed).
             // All identification methods failed — throw so the caller returns a proper error to the app
             \Log::warning('All identification methods failed for image: ' . $imagePath);
             throw new \RuntimeException('identification_failed');
@@ -678,7 +711,21 @@ class PlantController extends Controller
 
             if ($plantNetResult) {
                 \Log::info('PlantNet result: ' . $plantNetResult['name'] . ' (confidence: ' . $plantNetResult['confidence'] . ')');
-                return $plantNetResult;
+
+                // Confident enough to trust alone — skip the extra API call/cost.
+                if ($plantNetResult['confidence'] >= 0.70) {
+                    return $plantNetResult;
+                }
+
+                // 40–69% confidence: accepted, but this exact range is what produced wrong
+                // "confident" identifications before (e.g. a pothos called Philodendron
+                // hederaceum var kirkbridei at 31% — now blocked outright below 40%, but a
+                // 45% or 60% guess would still have been trusted alone with no check at all).
+                // Get an independent second opinion and only fully trust the pair when they
+                // agree; on disagreement, never silently pick one and call it fact.
+                \Log::info('PlantNet confidence only moderate, cross-checking with Gemini vision');
+                $secondOpinion = $this->identifyWithGeminiVision($imagePath, $language);
+                return $this->resolveIdentificationConfidence($plantNetResult, $secondOpinion);
             }
 
             // PlantNet confidence too low or failed — use Gemini vision to identify from the image
@@ -689,6 +736,40 @@ class PlantController extends Controller
             \Log::error('identifyWithFreeAPI failed: ' . $e->getMessage());
             return $this->identifyWithGeminiVision($imagePath, $language);
         }
+    }
+
+    /**
+     * Reconcile a primary identification (confidence 0.40–0.69) against an independent second
+     * opinion. Agreement raises confidence past the app's "uncertain" warning threshold;
+     * disagreement forces it back down below that threshold instead of silently keeping
+     * whichever answer happened to come first — the exact failure mode this guards against.
+     */
+    private function resolveIdentificationConfidence(array $primary, ?array $secondOpinion): array
+    {
+        if (!$secondOpinion || empty($secondOpinion['scientific_name'])) {
+            // No usable second opinion (e.g. OpenRouter unavailable) — nothing to cross-check
+            // against, leave the primary result and its own confidence as-is.
+            return $primary;
+        }
+
+        $primary['raw_data'] = is_array($primary['raw_data'] ?? null) ? $primary['raw_data'] : [];
+
+        if (PlantNameService::sameGenus($primary['scientific_name'] ?? '', $secondOpinion['scientific_name'] ?? '')) {
+            $primary['confidence'] = max((float) $primary['confidence'], 0.75);
+            $primary['raw_data']['cross_checked'] = true;
+            return $primary;
+        }
+
+        \Log::warning('Identification cross-check disagreement', [
+            'primary' => $primary['scientific_name'] ?? null,
+            'second_opinion' => $secondOpinion['scientific_name'] ?? null,
+        ]);
+
+        $primary['confidence'] = min((float) $primary['confidence'], (float) ($secondOpinion['confidence'] ?? 0.3), 0.35);
+        $primary['raw_data']['cross_check_disagreement'] = true;
+        $primary['raw_data']['second_opinion_name'] = $secondOpinion['name'] ?? null;
+        $primary['raw_data']['second_opinion_scientific_name'] = $secondOpinion['scientific_name'] ?? null;
+        return $primary;
     }
 
     private function identifyWithGeminiVision(string $imagePath, string $language): ?array
@@ -719,13 +800,14 @@ class PlantController extends Controller
                         ['type' => 'image_url', 'image_url' => ['url' => "data:{$mimeType};base64,{$imageData}"]],
                     ],
                 ]],
-                'max_tokens' => 100,
+                // generous: the model's reasoning tokens count toward this limit, and a
+                // truncated answer means no name at all
+                'max_tokens' => 1000,
                 'temperature' => 0.1,
             ], $apiKey);
 
             $text = $decoded['choices'][0]['message']['content'] ?? '';
-            $text = preg_replace('/```json|```/', '', $text);
-            $result = json_decode(trim($text), true);
+            $result = $this->extractJsonFromText($text);
 
             if (!isset($result['common_name']) || !$result['common_name']) {
                 \Log::warning('Gemini vision identification returned no plant name');
@@ -749,8 +831,16 @@ class PlantController extends Controller
                 $nameAr = $this->resolveArabicName($commonName);
             }
 
+            // Never store the Latin name as the display name
+            if (PlantNameService::isScientific($commonName, $scientificName)) {
+                $resolved = app(PlantNameService::class)->resolve($scientificName);
+                $commonName = $resolved['en'] ?: $commonName;
+                $nameAr = $nameAr ?: ($resolved['ar'] ?? null);
+            }
+
             return [
                 'name'             => $commonName,
+                'name_en'          => $commonName,
                 'name_ar'          => $nameAr,
                 'scientific_name'  => $scientificName,
                 'confidence'       => $confidence,
@@ -920,16 +1010,20 @@ class PlantController extends Controller
                         }
                         
                         // If we get a high confidence result, use it immediately
-                        if ($confidence > 0.3) {
+                        if ($confidence > 0.6) {
                             \Log::info("High confidence result found, using immediately: {$confidence}");
                             break;
                         }
                     }
                 }
             }
-            
-            // Process the best result if we found one with acceptable confidence
-            $minConfidence = 0.15; // 15% minimum — below this PlantNet is guessing
+
+            // Process the best result if we found one with acceptable confidence.
+            // Raised from 0.15: that let PlantNet guesses as low as ~15% be saved as a
+            // definitive species ID (e.g. a pothos misidentified as Philodendron hederaceum
+            // var kirkbridei at 31% confidence, shown to the user as fact). Below this bar we
+            // fall through to identifyWithGeminiVision for a second, independent opinion instead.
+            $minConfidence = 0.40;
 
             if ($bestResult && $bestConfidence >= $minConfidence) {
                 \Log::info('Using best PlantNet result with confidence: ' . $bestConfidence);
@@ -952,27 +1046,36 @@ class PlantController extends Controller
                     }
                 }
                 
-                // If PlantNet has no common names, ask Gemini to resolve one
-                if (empty($commonNames) && env('GEMINI_API_KEY')) {
-                    $resolvedCommon = $this->resolveCommonNameFromScientific($scientificName);
-                    if ($resolvedCommon) {
-                        $commonNames = [$resolvedCommon];
-                    }
-                }
+                // PlantNet may return names in the requested language (Arabic when lang=ar):
+                // keep the English one for `name` and the Arabic one for `name_ar`
+                $englishNames = array_values(array_filter($commonNames, fn ($n) => !PlantNameService::hasArabic($n)));
+                $arabicNames = array_values(array_filter($commonNames, fn ($n) => PlantNameService::hasArabic($n)));
+                $nameAr = $arabicNames[0] ?? null;
 
-                $displayName = !empty($commonNames) ? $commonNames[0] : $scientificName;
+                // If PlantNet has no English common name, resolve one (encyclopedia, then AI)
+                if (empty($englishNames)) {
+                    $resolved = app(PlantNameService::class)->resolve($scientificName);
+                    if (!empty($resolved['en'])) {
+                        $englishNames = [$resolved['en']];
+                    }
+                    $nameAr = $nameAr ?: ($resolved['ar'] ?? null);
+                }
+                $commonNames = !empty($englishNames) ? $englishNames : $commonNames;
+
+                $displayName = !empty($englishNames) ? $englishNames[0] : $scientificName;
                 $familyName = $species['family']['scientificNameWithoutAuthor'] ?? '';
 
                 \Log::info('PlantNet identified: ' . $displayName . ' (confidence: ' . $confidence . ')');
 
                 // Resolve Arabic name so the app can display it without a translation API call
-                $nameAr = $this->resolveArabicName($displayName);
+                $nameAr = $nameAr ?: $this->resolveArabicName($displayName);
 
                 // Enhance with Perenual API data (only for English, to preserve PlantNet's Arabic content)
                 $perenualData = ($language === 'ar') ? null : $this->getPerenualPlantData($scientificName, $displayName);
 
                 return [
                     'name' => $displayName,
+                    'name_en' => $displayName,
                     'name_ar' => $nameAr,
                     'confidence' => $confidence,
                     'common_names' => $commonNames,
@@ -1006,57 +1109,13 @@ class PlantController extends Controller
 
     private function resolveCommonNameFromScientific(string $scientificName): ?string
     {
-        try {
-            $apiKey = env('GEMINI_API_KEY');
-            $apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
-
-            $prompt = "What is the most widely used common name (in English) for the plant with scientific name \"{$scientificName}\"? Reply with only the common name, nothing else. If there is no well-known common name, reply with the scientific name.";
-
-            $response = \Illuminate\Support\Facades\Http::timeout(10)->post($apiUrl . '?key=' . $apiKey, [
-                'contents' => [['parts' => [['text' => $prompt]]]],
-                'generationConfig' => ['temperature' => 0.1, 'maxOutputTokens' => 32]
-            ]);
-
-            if ($response->successful()) {
-                $text = trim($response->json('candidates.0.content.parts.0.text') ?? '');
-                if ($text && strlen($text) < 80) {
-                    \Log::info("Resolved common name for {$scientificName}: {$text}");
-                    return $text;
-                }
-            }
-        } catch (\Exception $e) {
-            \Log::warning('resolveCommonNameFromScientific failed: ' . $e->getMessage());
-        }
-        return null;
+        return app(PlantNameService::class)->resolve($scientificName)['en'] ?? null;
     }
 
     private function resolveArabicName(string $commonName): ?string
     {
-        try {
-            $apiKey = env('GEMINI_API_KEY');
-            if (!$apiKey) return null;
-
-            $apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
-            $prompt = "What is the most widely used Arabic common name for the plant \"{$commonName}\"? Reply with only the Arabic name, nothing else.";
-
-            $response = \Illuminate\Support\Facades\Http::timeout(10)->post($apiUrl . '?key=' . $apiKey, [
-                'contents' => [['parts' => [['text' => $prompt]]]],
-                'generationConfig' => ['temperature' => 0.1, 'maxOutputTokens' => 32]
-            ]);
-
-            if ($response->successful()) {
-                $text = trim($response->json('candidates.0.content.parts.0.text') ?? '');
-                if ($text && strlen($text) < 100) {
-                    \Log::info("Resolved Arabic name for {$commonName}: {$text}");
-                    return $text;
-                }
-            }
-        } catch (\Exception $e) {
-            \Log::warning('resolveArabicName failed: ' . $e->getMessage());
-        }
-        return null;
+        return app(PlantNameService::class)->arabicFor($commonName);
     }
-
 
     private function identifyWithPlantId($imagePath)
     {
@@ -4632,39 +4691,34 @@ class PlantController extends Controller
      */
     private function callOpenRouterWithFallback(array $payload, string $apiKey, int $timeout = 20): ?array
     {
-        $models = ['google/gemini-2.5-flash', 'google/gemini-flash-1.5', 'google/gemini-2.0-flash-lite:free'];
+        // google/gemini-flash-1.5 and google/gemini-2.0-flash-lite:free were retired from
+        // OpenRouter's catalog (Gemini moved to the 3.x line) — kept current 2026-09-22.
+        $models = ['google/gemini-2.5-flash', 'google/gemini-2.5-flash-lite', 'google/gemma-4-31b-it:free'];
 
         foreach ($models as $model) {
             $payload['model'] = $model;
-            $encodedPayload = json_encode($payload);
 
-            $curl = curl_init();
-            curl_setopt_array($curl, [
-                CURLOPT_URL => 'https://openrouter.ai/api/v1/chat/completions',
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_POST => true,
-                CURLOPT_POSTFIELDS => $encodedPayload,
-                CURLOPT_HTTPHEADER => [
-                    'Authorization: Bearer ' . $apiKey,
-                    'Content-Type: application/json',
-                    'HTTP-Referer: https://greenycorner.ae',
-                    'X-Title: Greeny Corner',
-                ],
-                CURLOPT_TIMEOUT => $timeout,
-            ]);
-
-            $response = curl_exec($curl);
-            $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-            curl_close($curl);
+            try {
+                $response = Http::timeout($timeout)
+                    ->withHeaders([
+                        'Authorization' => 'Bearer ' . $apiKey,
+                        'HTTP-Referer' => 'https://greenycorner.ae',
+                        'X-Title' => 'Greeny Corner',
+                    ])
+                    ->post('https://openrouter.ai/api/v1/chat/completions', $payload);
+            } catch (\Throwable $e) {
+                \Log::warning("OpenRouter model {$model} request failed: " . $e->getMessage());
+                break;
+            }
 
             // 429 = rate limit / quota exceeded — try next model
-            if ($httpCode === 429) {
+            if ($response->status() === 429) {
                 \Log::warning("OpenRouter model {$model} rate limited, trying fallback.");
                 continue;
             }
 
-            if ($httpCode === 200 && $response) {
-                $decoded = json_decode($response, true);
+            if ($response->status() === 200 && $response->body()) {
+                $decoded = $response->json();
                 // Check for API-level rate limit inside the response body
                 if (isset($decoded['error']['code']) && $decoded['error']['code'] === 429) {
                     \Log::warning("OpenRouter model {$model} quota error in body, trying fallback.");
@@ -4674,6 +4728,7 @@ class PlantController extends Controller
             }
 
             // Other errors — don't retry with fallback
+            \Log::warning("OpenRouter model {$model} returned HTTP " . $response->status());
             break;
         }
 
@@ -4706,9 +4761,11 @@ class PlantController extends Controller
                         ['type' => 'image_url', 'image_url' => ['url' => "data:{$mimeType};base64,{$imageData}"]],
                     ],
                 ]],
-                'max_tokens' => 250,
+                // generous: reasoning tokens count toward this limit; 250 truncated the JSON
+                // (=> "could not analyze") for most photos
+                'max_tokens' => 2000,
                 'temperature' => 0.1,
-            ], $apiKey);
+            ], $apiKey, 30);
 
             if (!$decoded) {
                 \Log::warning("Health check: OpenRouter returned null for plant '{$plantName}'");
@@ -4716,18 +4773,21 @@ class PlantController extends Controller
             }
 
             $text = $decoded['choices'][0]['message']['content'] ?? '';
-            $text = preg_replace('/```json|```/', '', $text);
-            $result = json_decode(trim($text), true);
+            $result = $this->extractJsonFromText($text);
 
-            if (isset($result['health_status'])) {
+            if (is_array($result) && isset($result['health_status'])) {
                 $validStatuses = ['healthy', 'sick', 'needs_care', 'dying'];
                 if (!in_array($result['health_status'], $validStatuses)) {
                     $result['health_status'] = 'needs_care';
                 }
                 // Store both languages as JSON so the app can pick the right one
-                $notesEn = $result['health_notes_en'] ?? $result['health_notes'] ?? null;
-                $notesAr = $result['health_notes_ar'] ?? $notesEn;
-                $healthNotes = json_encode(['en' => $notesEn, 'ar' => $notesAr]);
+                $notesEn = $this->cleanNote($result['health_notes_en'] ?? $result['health_notes'] ?? null);
+                $notesAr = $this->cleanNote($result['health_notes_ar'] ?? null) ?? $notesEn;
+                // A healthy plant has no notes: store NULL, not the JSON string {"en":null,"ar":null}
+                // (clients used to print that raw text)
+                $healthNotes = ($notesEn || $notesAr)
+                    ? json_encode(['en' => $notesEn, 'ar' => $notesAr], JSON_UNESCAPED_UNICODE)
+                    : null;
                 return [
                     'health_status' => $result['health_status'],
                     'health_notes' => $healthNotes,
@@ -4740,6 +4800,16 @@ class PlantController extends Controller
         }
 
         return ['health_status' => null, 'health_notes' => null];
+    }
+
+    /** "null" / empty strings from the model become real nulls. */
+    private function cleanNote($value): ?string
+    {
+        if (!is_string($value)) {
+            return null;
+        }
+        $value = trim($value);
+        return ($value === '' || preg_match('/^(null|none|n\/a)$/i', $value)) ? null : $value;
     }
 
     /**
@@ -4758,7 +4828,7 @@ class PlantController extends Controller
         }
 
         // Cache key is language-independent since we return both languages
-        $cacheKey = 'treatment_v2_' . md5($disease);
+        $cacheKey = 'treatment_v3_' . md5(mb_strtolower($plantName . '|' . $disease));
         $cached = \Cache::get($cacheKey);
         if ($cached) {
             return response()->json(['success' => true, 'data' => $cached, 'cached' => true]);
@@ -4778,9 +4848,10 @@ class PlantController extends Controller
         try {
             $data = $this->callOpenRouterWithFallback([
                 'messages' => [['role' => 'user', 'content' => $prompt]],
-                'max_tokens' => 1500,
+                // generous: reasoning tokens count toward this limit and the bilingual JSON is long
+                'max_tokens' => 4000,
                 'temperature' => 0.2,
-            ], $apiKey);
+            ], $apiKey, 40);
 
             if (!$data) {
                 return response()->json(['success' => false, 'message' => 'AI service error'], 502);
@@ -4789,9 +4860,11 @@ class PlantController extends Controller
             $text = $data['choices'][0]['message']['content'] ?? '';
             $parsed = $this->extractJsonFromText($text);
 
-            if (!$parsed) {
-                \Log::error('Treatment parse failed. Raw: ' . substr($text, 0, 500));
-                return response()->json(['success' => false, 'message' => 'Could not parse treatment data'], 500);
+            // A usable answer needs at least treatment steps
+            $hasSteps = $parsed && (!empty($parsed['treatment_en']) || !empty($parsed['treatment_ar']) || !empty($parsed['treatment']));
+            if (!$hasSteps) {
+                \Log::error('Treatment parse failed / incomplete. Raw: ' . substr($text, 0, 500));
+                return response()->json(['success' => false, 'message' => 'Could not get treatment tips. Please try again.'], 502);
             }
 
             \Cache::put($cacheKey, $parsed, 86400); // cache 24h
@@ -4836,7 +4909,8 @@ class PlantController extends Controller
         // Return cached if already stored on plant and has bilingual fields
         if ($plant->fertilizer_info) {
             $cached = json_decode($plant->fertilizer_info, true);
-            if (isset($cached['name_ar'])) {
+            // Older cached records have no tips & tricks — regenerate those once
+            if (isset($cached['name_ar']) && (!empty($cached['tips_en']) || !empty($cached['tips_ar']))) {
                 return response()->json(['success' => true, 'data' => $cached, 'cached' => true]);
             }
         }
@@ -4849,14 +4923,15 @@ class PlantController extends Controller
         $plantName = $plant->name;
         $scientificName = $plant->scientific_name ? " ({$plant->scientific_name})" : '';
 
-        $prompt = "For a {$plantName}{$scientificName} plant, provide a specific fertilizer recommendation as bilingual JSON (no markdown):\n{\"name\":\"specific fertilizer product name in English (e.g. Miracle-Gro All Purpose, NPK 20-20-20)\",\"name_ar\":\"اسم السماد المحدد بالعربية\",\"type\":\"fertilizer type in English (e.g. balanced liquid fertilizer, slow-release granules)\",\"type_ar\":\"نوع السماد بالعربية\",\"frequency\":\"how often to fertilize in English (e.g. every 2 weeks during growing season)\",\"frequency_ar\":\"تكرار التسميد بالعربية\",\"application_en\":\"3-4 step application method in English including amount and timing\",\"application_ar\":\"طريقة التطبيق بالعربية في 3-4 خطوات\",\"season\":\"best season in English\",\"season_ar\":\"أفضل موسم بالعربية\"}";
+        $prompt = "For a {$plantName}{$scientificName} plant, provide a specific fertilizer recommendation plus practical fertilizing tips & tricks as bilingual JSON (no markdown):\n{\"tips_en\":[\"5 short practical fertilizing tips specific to this plant, in English\"],\"tips_ar\":[\"نفس النصائح الخمس بالعربية\"],\"avoid_en\":[\"3 common fertilizing mistakes for this plant, in English\"],\"avoid_ar\":[\"نفس الأخطاء الثلاثة بالعربية\"],\"name\":\"specific fertilizer product name in English (e.g. Miracle-Gro All Purpose, NPK 20-20-20)\",\"name_ar\":\"اسم السماد المحدد بالعربية\",\"type\":\"fertilizer type in English (e.g. balanced liquid fertilizer, slow-release granules)\",\"type_ar\":\"نوع السماد بالعربية\",\"frequency\":\"how often to fertilize in English (e.g. every 2 weeks during growing season)\",\"frequency_ar\":\"تكرار التسميد بالعربية\",\"application_en\":\"3-4 step application method in English including amount and timing\",\"application_ar\":\"طريقة التطبيق بالعربية في 3-4 خطوات\",\"season\":\"best season in English\",\"season_ar\":\"أفضل موسم بالعربية\"}";
 
         try {
             $data = $this->callOpenRouterWithFallback([
                 'messages' => [['role' => 'user', 'content' => $prompt]],
-                'max_tokens' => 600,
+                // generous: reasoning tokens count toward this limit and the bilingual JSON is long
+                'max_tokens' => 4000,
                 'temperature' => 0.2,
-            ], $apiKey);
+            ], $apiKey, 40);
 
             if (!$data) {
                 return response()->json(['success' => false, 'message' => 'AI service error'], 502);
@@ -4865,9 +4940,9 @@ class PlantController extends Controller
             $text = $data['choices'][0]['message']['content'] ?? '';
             $parsed = $this->extractJsonFromText($text);
 
-            if (!$parsed) {
+            if (!$parsed || (empty($parsed['name']) && empty($parsed['name_ar']))) {
                 \Log::error('Fertilizer parse failed. Raw: ' . substr($text, 0, 500));
-                return response()->json(['success' => false, 'message' => 'Could not parse fertilizer data'], 500);
+                return response()->json(['success' => false, 'message' => 'Could not get fertilizer data. Please try again.'], 502);
             }
 
             // Store on plant so we don't re-generate
@@ -4878,6 +4953,137 @@ class PlantController extends Controller
             \Log::error('Fertilizer info error: ' . $e->getMessage());
             return response()->json(['success' => false, 'message' => 'Failed to get fertilizer info'], 500);
         }
+    }
+
+    /**
+     * Get or generate the plant's symbolic meaning & gift-giving occasions.
+     * Uses the free OpenRouter model only (no paid fallback) since this is a low-stakes,
+     * nice-to-have feature — cached on the plant so the free tier is hit at most once per plant.
+     * POST /api/plants/{id}/meaning
+     */
+    public function getPlantMeaning(\Illuminate\Http\Request $request, $id)
+    {
+        $plant = $request->user()->plants()->findOrFail($id);
+
+        if ($plant->meaning_info) {
+            $cached = json_decode($plant->meaning_info, true);
+            if (isset($cached['meaning_ar'])) {
+                return response()->json(['success' => true, 'data' => $cached, 'cached' => true]);
+            }
+        }
+
+        $plantName = $plant->name;
+        $scientificName = $plant->scientific_name ? " ({$plant->scientific_name})" : '';
+
+        $prompt = "For a {$plantName}{$scientificName} plant, describe its traditional symbolic meaning and when people give it as a gift, as bilingual JSON (no markdown):\n{\"meaning\":\"1-2 sentence symbolic meaning in English (e.g. luck, purity, resilience, prosperity) — if this species has no well-known symbolism, say so plainly instead of inventing one\",\"meaning_ar\":\"نفس المعنى بالعربية\",\"occasions\":\"1 sentence on occasions it's traditionally gifted for in English, or empty string if none\",\"occasions_ar\":\"نفس المناسبات بالعربية\"}";
+
+        $gemini = app(GeminiService::class);
+        $text = $gemini->completeFree($prompt, 700);
+        if (!$text) {
+            // Free tier rate-limited/unavailable — fall back to a cheap paid model instead of
+            // failing outright. Explicit trade-off (small recurring cost) so this low-stakes
+            // "fun fact" feature still almost always answers instead of asking for a retry.
+            \Log::info('Plant meaning: free tier unavailable, falling back to a paid model');
+            $text = $gemini->complete($prompt, 700);
+        }
+        $parsed = $text ? $this->extractJsonFromText($text) : null;
+
+        if (!$parsed || (empty($parsed['meaning']) && empty($parsed['meaning_ar']))) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Could not get plant meaning right now — please try again in a minute.',
+            ], 502);
+        }
+
+        $plant->update(['meaning_info' => json_encode($parsed, JSON_UNESCAPED_UNICODE)]);
+
+        return response()->json(['success' => true, 'data' => $parsed, 'cached' => false]);
+    }
+
+    /**
+     * What light and humidity THIS species wants (a range of levels + a short tip each), looked up once and
+     * cached on the plant. The stored care_info is mostly a generic default ("bright indirect light" for 93% of
+     * plants), so it can't be used to tell a cactus from a fern.
+     */
+    public function getEnvironmentNeeds(\Illuminate\Http\Request $request, $id)
+    {
+        $plant = $request->user()->plants()->findOrFail($id);
+
+        if (!empty($plant->environment_needs['light_min'])) {
+            return response()->json(['success' => true, 'data' => $plant->environment_needs, 'cached' => true]);
+        }
+
+        $plantName = $plant->name;
+        $scientificName = $plant->scientific_name ? " ({$plant->scientific_name})" : '';
+
+        $prompt = "What light and air humidity does a {$plantName}{$scientificName} need to thrive as a home or garden plant? Answer as JSON only (no markdown), using exactly these level words.\n"
+            . "Light levels: low (far from windows, shade), medium (a few steps from a window, partial shade), bright (next to a bright window, bright indirect light), direct (several hours of direct sun).\n"
+            . "Humidity levels: low (under 40%), medium (40-60%), high (over 60%).\n"
+            . "Give the acceptable RANGE for the species (min and max level; equal if it wants one level):\n"
+            . "{\"light_min\":\"low|medium|bright|direct\",\"light_max\":\"low|medium|bright|direct\",\"humidity_min\":\"low|medium|high\",\"humidity_max\":\"low|medium|high\","
+            . "\"light_tip\":\"one short practical sentence in English about light for this exact plant\",\"light_tip_ar\":\"نفس الجملة بالعربية\","
+            . "\"humidity_tip\":\"one short practical sentence in English about humidity for this exact plant\",\"humidity_tip_ar\":\"نفس الجملة بالعربية\"}";
+
+        $gemini = app(GeminiService::class);
+        $text = $gemini->completeFree($prompt, 600);
+        if (!$text) {
+            \Log::info('Environment needs: free tier unavailable, falling back to a paid model');
+            $text = $gemini->complete($prompt, 600);
+        }
+        $parsed = $text ? $this->extractJsonFromText($text) : null;
+        $needs = $parsed ? $this->normalizeEnvironmentNeeds($parsed) : null;
+
+        if (!$needs) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Could not look up this plant\'s light and humidity needs right now — please try again in a minute.',
+            ], 502);
+        }
+
+        $plant->update(['environment_needs' => $needs]);
+
+        return response()->json(['success' => true, 'data' => $needs, 'cached' => false]);
+    }
+
+    /** Keep only known level words, order min <= max, and trim the tips. Null when the answer is unusable. */
+    private function normalizeEnvironmentNeeds(array $raw): ?array
+    {
+        $lights = ['low', 'medium', 'bright', 'direct'];
+        $humidities = ['low', 'medium', 'high'];
+
+        $clean = function ($value, array $allowed) {
+            $v = is_string($value) ? strtolower(trim($value)) : null;
+            return in_array($v, $allowed, true) ? $v : null;
+        };
+
+        $lightMin = $clean($raw['light_min'] ?? null, $lights);
+        $lightMax = $clean($raw['light_max'] ?? null, $lights);
+        $humMin = $clean($raw['humidity_min'] ?? null, $humidities);
+        $humMax = $clean($raw['humidity_max'] ?? null, $humidities);
+
+        if (!$lightMin || !$lightMax || !$humMin || !$humMax) {
+            return null;
+        }
+
+        if (array_search($lightMin, $lights) > array_search($lightMax, $lights)) {
+            [$lightMin, $lightMax] = [$lightMax, $lightMin];
+        }
+        if (array_search($humMin, $humidities) > array_search($humMax, $humidities)) {
+            [$humMin, $humMax] = [$humMax, $humMin];
+        }
+
+        $tip = fn ($key) => isset($raw[$key]) && is_string($raw[$key]) ? mb_substr(trim($raw[$key]), 0, 300) : '';
+
+        return [
+            'light_min' => $lightMin,
+            'light_max' => $lightMax,
+            'humidity_min' => $humMin,
+            'humidity_max' => $humMax,
+            'light_tip' => $tip('light_tip'),
+            'light_tip_ar' => $tip('light_tip_ar'),
+            'humidity_tip' => $tip('humidity_tip'),
+            'humidity_tip_ar' => $tip('humidity_tip_ar'),
+        ];
     }
 
     private function identifyWithOpenRouterGemini($imagePath): ?array

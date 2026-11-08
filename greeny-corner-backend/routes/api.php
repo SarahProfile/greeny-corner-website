@@ -86,6 +86,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('plants/{id}/fertilize', [PlantController::class, 'fertilizePlant']);
     Route::put('plants/{id}/till', [PlantController::class, 'tillPlant']);
     Route::put('plants/{id}/schedule', [PlantController::class, 'updateSchedule']);
+    Route::put('plants/{id}/environment', [PlantController::class, 'updateEnvironment']);
     Route::post('plants/{id}/update-image', [PlantController::class, 'updatePlantImage']);
     Route::post('plants/{id}/check-health', [PlantController::class, 'checkHealth']);
     Route::post('plants/refresh-language', [PlantController::class, 'refreshPlantsLanguage']);
@@ -96,6 +97,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('plants/{id}/diseases-nutrition', [PlantController::class, 'getDiseasesAndNutrition']);
     Route::post('plants/disease-treatment', [PlantController::class, 'getDiseaseTreatment']);
     Route::post('plants/{id}/fertilizer-info', [PlantController::class, 'getFertilizerInfo']);
+    Route::post('plants/{id}/meaning', [PlantController::class, 'getPlantMeaning']);
+    Route::post('plants/{id}/environment-needs', [PlantController::class, 'getEnvironmentNeeds']);
 
     // Help Messages
     Route::post('help-messages', [HelpMessageController::class, 'store']);
