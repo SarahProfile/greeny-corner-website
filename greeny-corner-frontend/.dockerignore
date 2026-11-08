@@ -1,0 +1,14 @@
+node_modules
+.next
+.git
+.vercel
+.env.local
+.env.test
+playwright-report
+test-results
+tests
+videos
+design
+*.mp4
+*.md
+tsconfig.tsbuildinfo

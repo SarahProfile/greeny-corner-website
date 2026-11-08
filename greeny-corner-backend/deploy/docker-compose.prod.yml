@@ -37,6 +37,20 @@ services:
         condition: service_healthy
     networks: [internal]
 
+  greeny-web:
+    build: ./web
+    image: greeny-web:latest
+    restart: unless-stopped
+    env_file: web.env
+    volumes:
+      - web_cache:/app/.next/cache
+    networks: [edge]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:3000/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   greeny-db:
     image: mariadb:11.8
     restart: unless-stopped
@@ -55,6 +69,7 @@ services:
 volumes:
   uploads:
   db_data:
+  web_cache:
 
 networks:
   internal:
