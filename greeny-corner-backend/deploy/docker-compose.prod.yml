@@ -40,6 +40,8 @@ services:
   greeny-db:
     image: mariadb:11.8
     restart: unless-stopped
+    # plant_encyclopedia is ~220 MB; the 128 MB default pool forced disk reads on every list call
+    command: ["--innodb-buffer-pool-size=1G"]
     env_file: db.env
     volumes:
       - db_data:/var/lib/mysql

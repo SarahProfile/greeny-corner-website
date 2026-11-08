@@ -269,7 +269,8 @@ class PlantNameService
     {
         try {
             $lower = mb_strtolower($scientificName);
-            $row = PlantEncyclopedia::whereRaw('LOWER(scientific_name) = ?', [$lower])->first();
+            // Column is utf8mb4_unicode_ci (case-insensitive); LOWER() on it would skip the index.
+            $row = PlantEncyclopedia::where('scientific_name', $lower)->first();
             if (!$row) {
                 return null;
             }
