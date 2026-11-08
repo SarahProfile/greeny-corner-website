@@ -1,0 +1,59 @@
+# Greeny Corner API stack. Lives next to (and independent of) the mekna stack on the same server.
+# Only `greeny-api` joins mekna's Docker network so mekna's Caddy can reverse-proxy to it;
+# the database is on a private network and publishes no ports.
+name: greeny
+
+services:
+  greeny-api:
+    build: ..
+    image: greeny-api:latest
+    restart: unless-stopped
+    env_file: laravel.env
+    volumes:
+      - uploads:/var/www/html/storage/app
+      - ./secrets/firebase.json:/var/www/html/storage/greeny-corner-firebase-adminsdk-fbsvc-d29dc8e3b0.json:ro
+    depends_on:
+      greeny-db:
+        condition: service_healthy
+    networks: [internal, edge]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS -o /dev/null -H 'Accept: application/json' http://localhost:8080/up || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  greeny-worker:
+    image: greeny-api:latest
+    restart: unless-stopped
+    env_file: laravel.env
+    command: ["php", "artisan", "queue:work", "--sleep=3", "--tries=3", "--max-time=3600"]
+    volumes:
+      - uploads:/var/www/html/storage/app
+      - ./secrets/firebase.json:/var/www/html/storage/greeny-corner-firebase-adminsdk-fbsvc-d29dc8e3b0.json:ro
+    depends_on:
+      greeny-db:
+        condition: service_healthy
+    networks: [internal]
+
+  greeny-db:
+    image: mariadb:11.8
+    restart: unless-stopped
+    env_file: db.env
+    volumes:
+      - db_data:/var/lib/mysql
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  uploads:
+  db_data:
+
+networks:
+  internal:
+  edge:
+    external: true
+    name: mekna_default   # shared with mekna's Caddy
