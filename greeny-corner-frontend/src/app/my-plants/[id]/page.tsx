@@ -11,6 +11,9 @@ import MobileBottomNav from '@/components/MobileBottomNav';
 import { useTranslation } from 'react-i18next';
 import { translatePlantValue } from '@/lib/plantTranslations';
 import { translateText } from '@/lib/translateText';
+import { getLocalizedPlantName as localizedPlantName } from '@/lib/plantName';
+import { parseHealthNotes, englishHealthNotes } from '@/lib/healthNotes';
+import { SITE_URL } from '@/lib/site';
 
 interface PlantDetailPageProps {
   params: Promise<{ id: string }>;
@@ -42,6 +45,9 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
   const [checkingHealth, setCheckingHealth] = useState(false);
   const [treatmentData, setTreatmentData] = useState<any>(null);
   const [loadingTreatment, setLoadingTreatment] = useState(false);
+  const [meaningData, setMeaningData] = useState<any>(null);
+  const [loadingMeaning, setLoadingMeaning] = useState(false);
+  const [meaningError, setMeaningError] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   const { user, logout, loading: authLoading } = useAuth();
@@ -107,15 +113,8 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
     return `${n} يوم`;
   };
 
-  const hasArabic = (s?: string) => s ? /[؀-ۿ]/.test(s) : false;
-  const getLocalizedPlantName = (p: Plant) => {
-    if (i18n.language === 'ar') {
-      return p.api_data?.name_ar || p.api_data?.arabic_name || translatedPlantName || p.name;
-    }
-    // English: prefer name_en, then name if it's not Arabic, then scientific name, then raw name
-    const candidate = p.api_data?.name_en || (!hasArabic(p.api_data?.name) ? p.api_data?.name : null);
-    return candidate || p.scientific_name || p.api_data?.scientific_name || p.name;
-  };
+  const getLocalizedPlantName = (p: Plant) =>
+    localizedPlantName(p, i18n.language, translatedPlantName);
 
   const fetchPlant = async () => {
     try {
@@ -136,11 +135,8 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
         if (data.api_data?.toxicity) {
           translateText(data.api_data.toxicity, 'ar').then(setTranslatedToxicity);
         }
-        if (data.health_notes) {
-          let enNotes1 = data.health_notes;
-          try { const p1 = JSON.parse(data.health_notes); enNotes1 = p1.en || enNotes1; } catch {}
-          if (!/[\u0600-\u06FF]/.test(enNotes1)) translateText(enNotes1, 'ar').then(setTranslatedHealthNotes);
-        }
+        const enNotes1 = englishHealthNotes(data.health_notes);
+        if (enNotes1 && !/[\u0600-\u06FF]/.test(enNotes1)) translateText(enNotes1, 'ar').then(setTranslatedHealthNotes);
       }
       // No back-translation for English — api_data.name always contains the English name
     } catch (err: any) {
@@ -248,10 +244,10 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
     const name = getLocalizedPlantName(plant);
     const scientific = plant.scientific_name || plant.api_data?.scientific_name || '';
     const desc = plant.api_data?.description ? plant.api_data.description.slice(0, 120) + '...' : '';
-    const text = `🌿 ${name}${scientific ? ` (${scientific})` : ''}\n${desc}\n\n${t('share.sharedFrom')} 🪴\nhttps://greenycorner.ae`;
+    const text = `🌿 ${name}${scientific ? ` (${scientific})` : ''}\n${desc}\n\n${t('share.sharedFrom')} 🪴\n${SITE_URL}`;
     try {
       if (navigator.share) {
-        await navigator.share({ title: `${t('share.checkOutPlant')} ${name}`, text, url: 'https://greenycorner.ae' });
+        await navigator.share({ title: `${t('share.checkOutPlant')} ${name}`, text, url: SITE_URL });
       } else {
         await navigator.clipboard.writeText(text);
         setShareSuccess(true);
@@ -337,11 +333,9 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
       const result = await plantsAPI.checkPlantHealth(plant.id);
       if (result.success) {
         setPlant(result.plant);
-        if (i18n.language === 'ar' && result.plant?.health_notes) {
-          let enNotes2 = result.plant.health_notes;
-          try { const p2 = JSON.parse(result.plant.health_notes); enNotes2 = p2.en || enNotes2; } catch {}
-          if (!/[؀-ۿ]/.test(enNotes2)) translateText(enNotes2, 'ar').then(setTranslatedHealthNotes);
-        }
+        const enNotes2 = englishHealthNotes(result.plant?.health_notes);
+        if (i18n.language === 'ar' && enNotes2 && !/[؀-ۿ]/.test(enNotes2)) translateText(enNotes2, 'ar').then(setTranslatedHealthNotes);
+        else setTranslatedHealthNotes(null);
       }
       setTreatmentData(null);
     } catch (err: any) {
@@ -353,8 +347,7 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
 
   const handleGetTreatment = async () => {
     if (!plant) return;
-    let disease = plant.health_notes || plant.health_status || 'unknown disease';
-    try { const pd = JSON.parse(plant.health_notes || ''); disease = pd.en || disease; } catch {}
+    const disease = englishHealthNotes(plant.health_notes) || plant.health_status || 'unknown disease';
     const plantName = getLocalizedPlantName(plant);
     setLoadingTreatment(true);
     try {
@@ -364,6 +357,22 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
       setError(t('plantDetail.failedToUpdate'));
     } finally {
       setLoadingTreatment(false);
+    }
+  };
+
+  const handleGetMeaning = async () => {
+    if (!plant) return;
+    setLoadingMeaning(true);
+    setMeaningError(false);
+    try {
+      const result = await plantsAPI.getPlantMeaning(plant.id);
+      if (result.success) setMeaningData(result.data);
+      else setMeaningError(true);
+    } catch (err: any) {
+      // Free-tier model can be rate-limited — offer a retry, not an error banner
+      setMeaningError(true);
+    } finally {
+      setLoadingMeaning(false);
     }
   };
 
@@ -554,6 +563,17 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
                 <p className="text-lg italic text-gray-600 mb-4">
                   {plant.scientific_name || plant.api_data.scientific_name}
                 </p>
+              )}
+
+              {typeof plant.api_data?.confidence === 'number' && plant.api_data.confidence < 0.5 && (
+                <div className="flex items-start gap-2 bg-amber-50 border border-amber-300 rounded-xl p-3 mb-4" dir={i18n.language === 'ar' ? 'rtl' : 'ltr'}>
+                  <span className="text-xl leading-none">⚠️</span>
+                  <p className="text-sm text-amber-800">
+                    {i18n.language === 'ar'
+                      ? `لسنا متأكدين تمامًا من دقة هذا التصنيف (نسبة الثقة ${Math.round(plant.api_data.confidence * 100)}٪). إذا كانت هذه ليست نبتتك فعلاً، تواصل معنا وسنقوم بتصحيحها.`
+                      : `We're not fully confident about this identification (${Math.round(plant.api_data.confidence * 100)}% confidence). If this doesn't look like your plant, contact us and we'll fix it.`}
+                  </p>
+                </div>
               )}
 
               {plant.api_data?.description && (
@@ -792,15 +812,16 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
                 </p>
               )}
 
-              {plant.health_notes && (
-                <div className="bg-white/60 rounded-xl p-4 mb-4">
-                  {(() => {
-                    let notesText = plant.health_notes;
-                    try { const pn = JSON.parse(plant.health_notes); notesText = (i18n.language === 'ar' ? pn.ar : pn.en) || notesText; } catch {}
-                    return <p className="text-sm leading-relaxed">{(i18n.language === 'ar' && translatedHealthNotes) ? translatedHealthNotes : notesText}</p>;
-                  })()}
-                </div>
-              )}
+              {(() => {
+                // Only show the box when there is real text (a healthy plant has empty notes)
+                const notesText = parseHealthNotes(plant.health_notes, i18n.language);
+                if (!notesText) return null;
+                return (
+                  <div className="bg-white/60 rounded-xl p-4 mb-4">
+                    <p className="text-sm leading-relaxed">{(i18n.language === 'ar' && translatedHealthNotes) ? translatedHealthNotes : notesText}</p>
+                  </div>
+                );
+              })()}
 
               {/* Treatment Tips — only when not healthy */}
               {plant.health_status && plant.health_status !== 'healthy' && (
@@ -846,7 +867,7 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
                             </div>
                           )}
                           {prevention && <div className="bg-white/80 rounded-xl p-3 border border-blue-200"><p className="text-xs font-bold text-blue-700 uppercase mb-1">{ar ? 'الوقاية' : 'Prevention'}</p><p className="text-sm text-blue-800">{prevention}</p></div>}
-                          {recoveryTime && <div className="bg-white/80 rounded-xl p-3 border border-purple-200"><p className="text-xs font-bold text-purple-700 uppercase mb-1">{ar ? 'وقت التعافي' : 'Recovery Time'}</p><p className="text-sm text-purple-800">{recoveryTime}</p></div>}
+                          {recoveryTime && <div className="bg-white/80 rounded-xl p-3 border border-teal-200"><p className="text-xs font-bold text-teal-700 uppercase mb-1">{ar ? 'وقت التعافي' : 'Recovery Time'}</p><p className="text-sm text-teal-800">{recoveryTime}</p></div>}
                           {fertName && <div className="bg-white/80 rounded-xl p-3 border border-yellow-200"><p className="text-xs font-bold text-yellow-700 uppercase mb-1">{ar ? 'السماد الموصى به' : 'Recommended Fertilizer'}</p><p className="text-sm text-yellow-800">{fertName}{fertType ? ` — ${fertType}` : ''}</p>{fertApp && <p className="text-xs text-yellow-700 mt-1">{fertApp}</p>}</div>}
                         </>;
                       })()}
@@ -872,6 +893,39 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
                 🗑️ {t('plantDetail.deletePlant')}
               </button>
             </div>
+
+            {/* Meaning & Symbolism — free-tier AI */}
+            <div className="bg-white rounded-3xl shadow-xl p-6 border border-emerald-100">
+              <h3 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
+                ✨ {i18n.language === 'ar' ? 'معنى النبتة ورمزيتها' : 'Meaning & Symbolism'}
+              </h3>
+              {!meaningData ? (
+                <button
+                  onClick={handleGetMeaning}
+                  disabled={loadingMeaning}
+                  className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold py-2.5 px-4 rounded-xl transition-all disabled:opacity-50 text-sm"
+                >
+                  {loadingMeaning
+                    ? (i18n.language === 'ar' ? 'جاري البحث...' : 'Looking it up...')
+                    : meaningError
+                      ? (i18n.language === 'ar' ? 'تعذّر التحميل — أعد المحاولة' : "Couldn't load — tap to retry")
+                      : (i18n.language === 'ar' ? 'اكتشف معنى ورمزية النبتة' : 'Discover its meaning & symbolism')}
+                </button>
+              ) : (
+                <div className="space-y-2">
+                  {(() => {
+                    const ar = i18n.language === 'ar';
+                    const meaning = (ar ? meaningData.meaning_ar : meaningData.meaning) || meaningData.meaning || meaningData.meaning_ar;
+                    const occasions = (ar ? meaningData.occasions_ar : meaningData.occasions) || meaningData.occasions || meaningData.occasions_ar;
+                    return <>
+                      {meaning && <div className="bg-emerald-50 rounded-xl p-3 border border-emerald-200"><p className="text-xs font-bold text-emerald-700 uppercase mb-1">{ar ? 'المعنى الرمزي' : 'Symbolic Meaning'}</p><p className="text-sm text-emerald-900">{meaning}</p></div>}
+                      {occasions && <div className="bg-emerald-50 rounded-xl p-3 border border-emerald-200"><p className="text-xs font-bold text-emerald-700 uppercase mb-1">{ar ? 'مناسبات الإهداء' : 'Gift-Giving Occasions'}</p><p className="text-sm text-emerald-900">{occasions}</p></div>}
+                    </>;
+                  })()}
+                  <button onClick={() => setMeaningData(null)} className="text-xs text-gray-500 hover:text-gray-700 mt-1">{i18n.language === 'ar' ? 'إخفاء' : 'Hide'}</button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -891,9 +945,9 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
               </div>
 
               {plant.api_data?.family && (
-                <div className="bg-gradient-to-br from-purple-50 to-pink-50 p-4 rounded-2xl border border-purple-200">
-                  <dt className="text-sm font-semibold text-purple-900 mb-2">{t('plantDetail.family')}</dt>
-                  <dd className="text-sm text-purple-700 font-medium">{translatePlantValue(plant.api_data.family, i18n.language)}</dd>
+                <div className="bg-gradient-to-br from-teal-50 to-cyan-50 p-4 rounded-2xl border border-teal-200">
+                  <dt className="text-sm font-semibold text-teal-900 mb-2">{t('plantDetail.family')}</dt>
+                  <dd className="text-sm text-teal-700 font-medium">{translatePlantValue(plant.api_data.family, i18n.language)}</dd>
                 </div>
               )}
 
@@ -913,9 +967,9 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
             </div>
 
             {plant.api_data?.common_names && plant.api_data.common_names.length > 0 && (
-              <div className="mt-4 bg-gradient-to-r from-indigo-50 to-purple-50 p-5 rounded-2xl border border-indigo-200">
-                <dt className="text-sm font-semibold text-indigo-900 mb-2">{t('plantDetail.alsoKnownAs')}</dt>
-                <dd className="text-sm text-indigo-800 font-medium">
+              <div className="mt-4 bg-gradient-to-r from-teal-50 to-cyan-50 p-5 rounded-2xl border border-teal-200">
+                <dt className="text-sm font-semibold text-teal-900 mb-2">{t('plantDetail.alsoKnownAs')}</dt>
+                <dd className="text-sm text-teal-800 font-medium">
                   {plant.api_data.common_names.join(', ')}
                 </dd>
               </div>
@@ -967,12 +1021,12 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
               </div>
 
               {plant.api_data.care_info.care_tips && (
-                <div className="mt-4 bg-gradient-to-r from-indigo-50 to-purple-50 p-5 rounded-2xl border border-indigo-200">
-                  <h4 className="text-sm font-semibold text-indigo-900 mb-2 flex items-center">
+                <div className="mt-4 bg-gradient-to-r from-teal-50 to-cyan-50 p-5 rounded-2xl border border-teal-200">
+                  <h4 className="text-sm font-semibold text-teal-900 mb-2 flex items-center">
                     <span className="text-xl mr-2">💡</span>
                     {t('plantDetail.careTips')}
                   </h4>
-                  <p className="text-sm text-indigo-700 leading-relaxed">{translatePlantValue(plant.api_data.care_info.care_tips, i18n.language)}</p>
+                  <p className="text-sm text-teal-700 leading-relaxed">{translatePlantValue(plant.api_data.care_info.care_tips, i18n.language)}</p>
                 </div>
               )}
             </div>
@@ -994,9 +1048,9 @@ export default function PlantDetailPage({ params }: PlantDetailPageProps) {
                   <div className="text-sm font-semibold text-green-900 mb-2">{t('plantDetail.growthRate')}</div>
                   <div className="text-lg text-green-700 font-bold">{translatePlantValue(plant.api_data.growth_info.growth_rate, i18n.language)}</div>
                 </div>
-                <div className="bg-gradient-to-br from-purple-50 to-pink-50 p-5 rounded-2xl text-center border border-purple-200">
-                  <div className="text-sm font-semibold text-purple-900 mb-2">{t('plantDetail.height')}</div>
-                  <div className="text-lg text-purple-700 font-bold">{translatePlantValue(plant.api_data.growth_info.mature_height, i18n.language)}</div>
+                <div className="bg-gradient-to-br from-teal-50 to-cyan-50 p-5 rounded-2xl text-center border border-teal-200">
+                  <div className="text-sm font-semibold text-teal-900 mb-2">{t('plantDetail.height')}</div>
+                  <div className="text-lg text-teal-700 font-bold">{translatePlantValue(plant.api_data.growth_info.mature_height, i18n.language)}</div>
                 </div>
                 <div className="bg-gradient-to-br from-orange-50 to-amber-50 p-5 rounded-2xl text-center border border-orange-200">
                   <div className="text-sm font-semibold text-orange-900 mb-2">{t('plantDetail.spread')}</div>

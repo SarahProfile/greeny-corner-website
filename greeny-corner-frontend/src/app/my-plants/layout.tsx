@@ -1,4 +1,5 @@
 import { Metadata } from 'next';
+import { SITE_URL } from '@/lib/site';
 
 export const metadata: Metadata = {
   title: 'My Plants',
@@ -6,11 +7,11 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'My Plants - Greeny Corner',
     description: 'View and manage your plant collection with Greeny Corner.',
-    url: 'https://www.greenycorner.ae/my-plants',
+    url: `${SITE_URL}/my-plants`,
     type: 'website',
     images: [
       {
-        url: 'https://www.greenycorner.ae/og-image.png',
+        url: `${SITE_URL}/og-image.png`,
         width: 1200,
         height: 630,
         alt: 'My Plants - Greeny Corner',

@@ -147,8 +147,8 @@ export default function AccountPage() {
               <p className="text-3xl font-bold text-blue-600">{userLevel.level}</p>
               <p className="text-sm text-gray-600 mt-1">{t('account.currentLevel')}</p>
             </div>
-            <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl p-4 text-center border border-purple-100">
-              <p className="text-3xl font-bold text-purple-600">🏆</p>
+            <div className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-2xl p-4 text-center border border-teal-100">
+              <p className="text-3xl font-bold text-teal-600">🏆</p>
               <p className="text-sm text-gray-600 mt-1">{t('account.achievements')}</p>
             </div>
             <div className="bg-gradient-to-br from-yellow-50 to-orange-50 rounded-2xl p-4 text-center border border-yellow-100">
@@ -196,7 +196,7 @@ export default function AccountPage() {
               <p className="text-4xl mb-2">🌿</p>
               <p className="text-sm font-semibold text-gray-800">{t('account.fivePlants')}</p>
             </div>
-            <div className={`p-4 rounded-2xl text-center ${plantCount >= 10 ? 'bg-gradient-to-br from-purple-100 to-pink-100 border-2 border-purple-300' : 'bg-gray-100 opacity-50'}`}>
+            <div className={`p-4 rounded-2xl text-center ${plantCount >= 10 ? 'bg-gradient-to-br from-teal-100 to-cyan-100 border-2 border-teal-300' : 'bg-gray-100 opacity-50'}`}>
               <p className="text-4xl mb-2">🌲</p>
               <p className="text-sm font-semibold text-gray-800">{t('account.tenPlants')}</p>
             </div>
@@ -208,7 +208,7 @@ export default function AccountPage() {
               <p className="text-4xl mb-2">🏆</p>
               <p className="text-sm font-semibold text-gray-800">{t('account.fiftyPlants')}</p>
             </div>
-            <div className={`p-4 rounded-2xl text-center ${plantCount >= 100 ? 'bg-gradient-to-br from-indigo-100 to-purple-100 border-2 border-indigo-300' : 'bg-gray-100 opacity-50'}`}>
+            <div className={`p-4 rounded-2xl text-center ${plantCount >= 100 ? 'bg-gradient-to-br from-emerald-100 to-teal-100 border-2 border-emerald-300' : 'bg-gray-100 opacity-50'}`}>
               <p className="text-4xl mb-2">👑</p>
               <p className="text-sm font-semibold text-gray-800">{t('account.hundredPlants')}</p>
             </div>

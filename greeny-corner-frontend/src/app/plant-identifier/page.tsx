@@ -3,12 +3,13 @@
 import { useState, useRef, useCallback } from 'react';
 import Script from 'next/script';
 import Header from '@/components/Header';
+import { SITE_URL } from '@/lib/site';
 
 const structuredData = {
   '@context': 'https://schema.org',
   '@type': 'WebApplication',
   name: 'Greeny Corner Plant Identifier',
-  url: 'https://www.greenycorner.ae/plant-identifier',
+  url: `${SITE_URL}/plant-identifier`,
   description: 'Free AI-powered plant identification tool. Upload a photo to instantly identify any plant and get care tips, watering schedules, and health advice.',
   applicationCategory: 'UtilitiesApplication',
   operatingSystem: 'Web',

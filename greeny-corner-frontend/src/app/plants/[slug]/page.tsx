@@ -2,6 +2,7 @@ import { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { SITE_URL } from '@/lib/site';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://api.greenycorner.ae/api';
 
@@ -176,18 +177,18 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     openGraph: {
       title,
       description,
-      url: `https://greenycorner.ae/plants/${slug}`,
+      url: `${SITE_URL}/plants/${slug}`,
       siteName: 'Greeny Corner',
       type: 'article',
       images: image ? [{ url: image, alt: plant.name }] : [],
     },
     twitter: { card: 'summary_large_image', title, description, images: image ? [image] : [] },
     alternates: {
-      canonical: `https://www.greenycorner.ae/plants/${slug}`,
+      canonical: `${SITE_URL}/plants/${slug}`,
       languages: {
-        'en':        `https://www.greenycorner.ae/plants/${slug}`,
-        'ar':        `https://www.greenycorner.ae/ar/plants/${slug}`,
-        'x-default': `https://www.greenycorner.ae/plants/${slug}`,
+        'en':        `${SITE_URL}/plants/${slug}`,
+        'ar':        `${SITE_URL}/ar/plants/${slug}`,
+        'x-default': `${SITE_URL}/plants/${slug}`,
       },
     },
   };
@@ -235,9 +236,9 @@ export default async function PlantDetailPage({ params }: { params: Promise<{ sl
       alternateName: plant.common_names ?? [],
       ...(plant.scientific_name ? { sameAs: `https://en.wikipedia.org/wiki/${encodeURIComponent(plant.scientific_name.replace(/ /g, '_'))}` } : {}),
     },
-    author: { '@type': 'Organization', name: 'Greeny Corner', url: 'https://greenycorner.ae' },
-    publisher: { '@type': 'Organization', name: 'Greeny Corner', url: 'https://greenycorner.ae', logo: 'https://greenycorner.ae/logo.png' },
-    mainEntityOfPage: { '@type': 'WebPage', '@id': `https://greenycorner.ae/plants/${slug}` },
+    author: { '@type': 'Organization', name: 'Greeny Corner', url: SITE_URL },
+    publisher: { '@type': 'Organization', name: 'Greeny Corner', url: SITE_URL, logo: `${SITE_URL}/logo.png` },
+    mainEntityOfPage: { '@type': 'WebPage', '@id': `${SITE_URL}/plants/${slug}` },
     ...(plant.care_info ? {
       hasPart: {
         '@type': 'HowTo',
@@ -255,11 +256,11 @@ export default async function PlantDetailPage({ params }: { params: Promise<{ sl
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
     itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'Home',             item: 'https://www.greenycorner.ae' },
-      { '@type': 'ListItem', position: 2, name: 'Plants',           item: 'https://www.greenycorner.ae/plants' },
-      ...(plant.family ? [{ '@type': 'ListItem', position: 3, name: plant.family, item: `https://www.greenycorner.ae/plants?family=${encodeURIComponent(plant.family)}` },
-        { '@type': 'ListItem', position: 4, name: plant.name, item: `https://www.greenycorner.ae/plants/${slug}` }]
-      : [{ '@type': 'ListItem', position: 3, name: plant.name, item: `https://www.greenycorner.ae/plants/${slug}` }]),
+      { '@type': 'ListItem', position: 1, name: 'Home',             item: SITE_URL },
+      { '@type': 'ListItem', position: 2, name: 'Plants',           item: `${SITE_URL}/plants` },
+      ...(plant.family ? [{ '@type': 'ListItem', position: 3, name: plant.family, item: `${SITE_URL}/plants?family=${encodeURIComponent(plant.family)}` },
+        { '@type': 'ListItem', position: 4, name: plant.name, item: `${SITE_URL}/plants/${slug}` }]
+      : [{ '@type': 'ListItem', position: 3, name: plant.name, item: `${SITE_URL}/plants/${slug}` }]),
     ],
   };
 
@@ -665,6 +666,26 @@ export default async function PlantDetailPage({ params }: { params: Promise<{ sl
             <Link href="/plants" className="border-2 border-white text-white font-bold px-8 py-3 rounded-2xl hover:bg-white/10 transition-colors">
               Browse More Plants
             </Link>
+          </div>
+          {/* Install links: encyclopedia pages are where search traffic lands, so send it to the stores
+              (install velocity is a ranking signal on both stores). */}
+          <div className="flex flex-col sm:flex-row gap-3 justify-center mt-4">
+            <a
+              href="https://apps.apple.com/app/greeny-corner/id6756967530"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-black/80 text-white font-semibold px-6 py-3 rounded-2xl hover:bg-black transition-colors"
+            >
+               Download on the App Store
+            </a>
+            <a
+              href="https://play.google.com/store/apps/details?id=com.greenycorner.app"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-black/80 text-white font-semibold px-6 py-3 rounded-2xl hover:bg-black transition-colors"
+            >
+              ▶ Get it on Google Play
+            </a>
           </div>
         </div>
       </main>

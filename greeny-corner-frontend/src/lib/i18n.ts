@@ -475,7 +475,15 @@ const resources = {
         "settingsSaved": "Settings saved!",
         "testNotification": "Send Test Notification",
         "viewAll": "View all notifications",
-        "goToSettings": "Settings"
+        "goToSettings": "Settings",
+        "enableDesktopTitle": "Stay in the know.",
+        "enableDesktopSubtitle": "Turn on desktop notifications to get watering, fertilizing, and tilling reminders.",
+        "enableDesktopButton": "Enable notifications",
+        "enableDesktopDismiss": "Not now",
+        "desktopEnabled": "Desktop notifications are on",
+        "desktopBlocked": "Notifications are blocked",
+        "desktopBlockedHelp": "You've blocked notifications for this site in your browser. Enable them from your browser's site settings to get plant care reminders.",
+        "desktopUnsupported": "This browser doesn't support desktop notifications."
       },
       "share": {
         "sharePlant": "Share Plant",

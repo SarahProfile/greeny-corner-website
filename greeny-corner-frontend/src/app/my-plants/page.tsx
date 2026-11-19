@@ -9,6 +9,7 @@ import Header from '@/components/Header';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import { useTranslation } from 'react-i18next';
 import { translateText } from '@/lib/translateText';
+import { getLocalizedPlantName as localizedPlantName } from '@/lib/plantName';
 import { notificationService } from '@/lib/notifications';
 
 export default function MyPlantsPage() {
@@ -22,15 +23,8 @@ export default function MyPlantsPage() {
   const router = useRouter();
   const { t, i18n } = useTranslation();
 
-  const hasArabicChars = (s?: string) => s ? /[؀-ۿ]/.test(s) : false;
-
-  const getLocalizedPlantName = (plant: Plant) => {
-    if (i18n.language === 'ar') {
-      return translatedNames[plant.id] || plant.api_data?.name_ar || plant.api_data?.arabic_name || plant.name;
-    }
-    const candidate = plant.api_data?.name_en || (!hasArabicChars(plant.api_data?.name) ? plant.api_data?.name : null);
-    return candidate || plant.scientific_name || plant.api_data?.scientific_name || plant.name;
-  };
+  const getLocalizedPlantName = (plant: Plant) =>
+    localizedPlantName(plant, i18n.language, translatedNames[plant.id]);
 
   useEffect(() => {
     console.log('🔍 MyPlants: Auth check - authLoading:', authLoading, 'user:', user ? 'exists' : 'null');
@@ -281,6 +275,15 @@ export default function MyPlantsPage() {
                         e.currentTarget.src = '/placeholder-plant.svg';
                       }}
                     />
+
+                    {typeof plant.api_data?.confidence === 'number' && plant.api_data.confidence < 0.5 && (
+                      <div
+                        className="absolute top-4 left-4 bg-amber-500 text-white w-7 h-7 rounded-full shadow-lg flex items-center justify-center text-sm"
+                        title={i18n.language === 'ar' ? 'تصنيف غير مؤكد' : 'Uncertain identification'}
+                      >
+                        ⚠️
+                      </div>
+                    )}
 
                     {/* Status Badge */}
                     <div className="absolute top-4 right-4">

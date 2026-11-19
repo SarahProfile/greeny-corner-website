@@ -3,6 +3,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Suspense } from 'react';
 import PlantSearch from './PlantSearch';
+import { SITE_URL } from '@/lib/site';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://api.greenycorner.ae/api';
 
@@ -72,11 +73,11 @@ export async function generateMetadata(): Promise<Metadata> {
     openGraph: {
       title: 'Plant Encyclopedia — 400,000+ Plants | Greeny Corner',
       description: 'Free care guides, scientific names, and growing tips for over 400,000 plant species.',
-      url: 'https://www.greenycorner.ae/plants',
+      url: `${SITE_URL}/plants`,
       siteName: 'Greeny Corner',
       type: 'website',
     },
-    alternates: { canonical: 'https://www.greenycorner.ae/plants' },
+    alternates: { canonical: `${SITE_URL}/plants` },
   };
 }
 
@@ -158,14 +159,14 @@ export default async function PlantDirectoryPage({
     '@type': 'CollectionPage',
     name: 'Plant Encyclopedia',
     description: `Browse ${total.toLocaleString()}+ plants with care guides, watering schedules, and scientific classification. Search by common name or scientific name.`,
-    url: 'https://www.greenycorner.ae/plants',
+    url: `${SITE_URL}/plants`,
     numberOfItems: total,
     about: { '@type': 'Thing', name: 'Plants', sameAs: 'https://en.wikipedia.org/wiki/Plant' },
     breadcrumb: {
       '@type': 'BreadcrumbList',
       itemListElement: [
-        { '@type': 'ListItem', position: 1, name: 'Home',  item: 'https://www.greenycorner.ae' },
-        { '@type': 'ListItem', position: 2, name: 'Plants', item: 'https://www.greenycorner.ae/plants' },
+        { '@type': 'ListItem', position: 1, name: 'Home',  item: SITE_URL },
+        { '@type': 'ListItem', position: 2, name: 'Plants', item: `${SITE_URL}/plants` },
       ],
     },
   };

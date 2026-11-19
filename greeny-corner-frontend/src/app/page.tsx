@@ -9,6 +9,7 @@ import { useTranslation } from 'react-i18next';
 import Script from 'next/script';
 import { Fredoka } from 'next/font/google';
 import { useScrollReveal } from '@/hooks/useScrollReveal';
+import { SITE_URL } from '@/lib/site';
 
 const fredoka = Fredoka({ subsets: ['latin'], weight: ['500', '600', '700'], variable: '--font-fredoka' });
 
@@ -49,7 +50,7 @@ export default function Home() {
     '@type': 'WebApplication',
     name: 'Greeny Corner',
     description: 'AI-powered plant identification and care management app for plant lovers',
-    url: 'https://www.greenycorner.ae',
+    url: SITE_URL,
     applicationCategory: 'LifestyleApplication',
     operatingSystem: 'Web',
     offers: {
@@ -65,7 +66,7 @@ export default function Home() {
     author: {
       '@type': 'Organization',
       name: 'Greeny Corner',
-      url: 'https://www.greenycorner.ae',
+      url: SITE_URL,
     },
   };
 

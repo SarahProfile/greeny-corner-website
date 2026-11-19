@@ -6,13 +6,14 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import { useTranslation } from 'react-i18next';
+import { SITE_URL } from '@/lib/site';
 
 const organizationSchema = {
   '@context': 'https://schema.org',
   '@type': 'Organization',
   name: 'Greeny Corner',
-  url: 'https://www.greenycorner.ae',
-  logo: 'https://www.greenycorner.ae/greeny-logo.svg',
+  url: SITE_URL,
+  logo: `${SITE_URL}/greeny-logo.svg`,
   description: 'AI-powered plant care and identification app for plant lovers in the UAE and worldwide.',
   sameAs: [
     'https://apps.apple.com/ae/app/greeny-corner/id6756967530',
@@ -21,7 +22,7 @@ const organizationSchema = {
   contactPoint: {
     '@type': 'ContactPoint',
     contactType: 'customer support',
-    url: 'https://www.greenycorner.ae/support',
+    url: `${SITE_URL}/support`,
   },
 };
 

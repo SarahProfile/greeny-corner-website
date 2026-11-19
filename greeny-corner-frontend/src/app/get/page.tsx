@@ -3,6 +3,7 @@ import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import QRCode from 'qrcode';
 import { androidUrl, cleanSource, detectPlatform, iosUrl } from './links';
+import { SITE_URL } from '@/lib/site';
 
 export const metadata: Metadata = {
   title: 'Get the App',
@@ -11,8 +12,8 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Get Greeny Corner',
     description: 'Identify plants, diagnose problems and never forget to water. Free on iPhone and Android.',
-    url: 'https://www.greenycorner.ae/get',
-    images: [{ url: 'https://www.greenycorner.ae/og-image.png', width: 1200, height: 630, alt: 'Greeny Corner' }],
+    url: `${SITE_URL}/get`,
+    images: [{ url: `${SITE_URL}/og-image.png`, width: 1200, height: 630, alt: 'Greeny Corner' }],
   },
 };
 
@@ -60,7 +61,7 @@ export default async function GetPage({ searchParams }: { searchParams: SearchPa
   const copy = COPY[lang];
 
   // The QR points back at this page so a phone is routed by its own OS.
-  const qr = await QRCode.toString(`https://www.greenycorner.ae/get?src=${src === 'direct' ? 'qr' : src}`, {
+  const qr = await QRCode.toString(`${SITE_URL}/get?src=${src === 'direct' ? 'qr' : src}`, {
     type: 'svg',
     margin: 1,
     width: 200,

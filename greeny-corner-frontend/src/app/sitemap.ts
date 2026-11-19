@@ -1,7 +1,8 @@
 import { MetadataRoute } from 'next';
+import { SITE_URL } from '@/lib/site';
 
 const API  = process.env.NEXT_PUBLIC_API_URL || 'https://api.greenycorner.ae/api';
-const BASE = 'https://www.greenycorner.ae';
+const BASE = SITE_URL;
 
 // 10 K URLs per sitemap file (Google limit is 50 K, we stay conservative)
 const CHUNK_SIZE = 10000;

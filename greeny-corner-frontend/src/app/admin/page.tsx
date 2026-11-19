@@ -128,7 +128,7 @@ export default function AdminDashboard() {
             value={stats.total_messages}
             change={`${stats.pending_messages} pending`}
             icon="💬"
-            color="purple"
+            color="teal"
           />
           <StatCard
             title="Avg Plants/User"

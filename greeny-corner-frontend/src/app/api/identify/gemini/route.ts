@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { SITE_URL } from '@/lib/site';
 
 const OPENROUTER_API = 'https://openrouter.ai/api/v1/chat/completions';
 const MODEL = 'google/gemini-2.5-flash';
@@ -50,7 +51,7 @@ export async function POST(req: NextRequest) {
       headers: {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://greenycorner.ae',
+        'HTTP-Referer': SITE_URL,
         'X-Title': 'Greeny Corner Plant Identifier',
       },
       body: JSON.stringify({

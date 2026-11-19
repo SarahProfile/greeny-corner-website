@@ -3,13 +3,13 @@ interface StatCardProps {
   value: number | string;
   change: string;
   icon: string;
-  color: 'blue' | 'green' | 'purple' | 'orange';
+  color: 'blue' | 'green' | 'teal' | 'orange';
 }
 
 const colorClasses = {
   blue: 'bg-blue-100 text-blue-600',
   green: 'bg-emerald-100 text-emerald-600',
-  purple: 'bg-purple-100 text-purple-600',
+  teal: 'bg-teal-100 text-teal-600',
   orange: 'bg-orange-100 text-orange-600',
 };
 

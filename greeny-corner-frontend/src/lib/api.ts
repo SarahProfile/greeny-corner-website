@@ -245,6 +245,12 @@ export const plantsAPI = {
     const response = await api.post('/plants/disease-treatment', { disease, plant_name: plantName, language });
     return response.data;
   },
+
+  // Symbolic meaning & gift occasions — free-tier AI, may occasionally need a retry
+  getPlantMeaning: async (id: number) => {
+    const response = await api.post(`/plants/${id}/meaning`, {});
+    return response.data;
+  },
 };
 
 // ─── Plant Encyclopedia (public, no auth) ─────────────────────────────────────

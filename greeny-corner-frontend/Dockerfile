@@ -11,6 +11,13 @@ WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+# One image per public domain. NEXT_PUBLIC_SITE_URL overrides the value from .env.production.
+ARG NEXT_PUBLIC_SITE_URL=https://www.greenycorner.ae
+ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
+# The static public/robots.txt, public/sitemap.xml and the About-page text carry the host literally.
+RUN H="${NEXT_PUBLIC_SITE_URL#https://}"; \
+    sed -i "s#https://www\.greenycorner\.ae#${NEXT_PUBLIC_SITE_URL}#g" public/robots.txt public/sitemap.xml && \
+    sed -i "s#\"www\.greenycorner\.ae\"#\"${H}\"#g" src/lib/i18n.ts
 RUN npm run build
 
 FROM node:22-alpine AS run

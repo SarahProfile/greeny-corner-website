@@ -5,6 +5,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import ClientI18nProvider from "@/components/ClientI18nProvider";
 import GoogleAnalytics from "@/components/GoogleAnalytics";
 import RootFooter from "@/components/RootFooter";
+import { SITE_URL } from '@/lib/site';
 
 const inter = Inter({
   variable: "--font-inter",
@@ -12,7 +13,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://www.greenycorner.ae'),
+  metadataBase: new URL(SITE_URL),
   title: {
     default: 'Greeny Corner - Smart Plant Care & Identification App',
     template: '%s | Greeny Corner'
@@ -50,21 +51,21 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    url: 'https://www.greenycorner.ae',
+    url: SITE_URL,
     title: 'Greeny Corner - Smart Plant Care & Identification App',
     description: 'AI-powered plant identification and care management. Track your plants, get watering reminders, and learn expert care tips.',
     siteName: 'Greeny Corner',
     images: [
       {
-        url: 'https://www.greenycorner.ae/og-image.png',
-        secureUrl: 'https://www.greenycorner.ae/og-image.png',
+        url: `${SITE_URL}/og-image.png`,
+        secureUrl: `${SITE_URL}/og-image.png`,
         width: 1200,
         height: 630,
         alt: 'Greeny Corner - Smart Plant Care & Identification App',
         type: 'image/png',
       },
       {
-        url: 'https://www.greenycorner.ae/greeny-logo.svg',
+        url: `${SITE_URL}/greeny-logo.svg`,
         width: 1200,
         height: 630,
         alt: 'Greeny Corner Logo',
@@ -80,15 +81,15 @@ export const metadata: Metadata = {
     title: 'Greeny Corner - Smart Plant Care & Identification App',
     description: 'AI-powered plant identification and care management. Track your plants and get watering reminders.',
     images: {
-      url: 'https://www.greenycorner.ae/og-image.png',
+      url: `${SITE_URL}/og-image.png`,
       alt: 'Greeny Corner - Smart Plant Care & Identification App',
     },
   },
   alternates: {
-    canonical: 'https://www.greenycorner.ae',
+    canonical: SITE_URL,
     languages: {
-      'en': 'https://www.greenycorner.ae',
-      'ar': 'https://www.greenycorner.ae',
+      'en': SITE_URL,
+      'ar': SITE_URL,
     },
   },
   category: 'technology',
@@ -111,6 +112,10 @@ export const metadata: Metadata = {
   },
   verification: {
     google: '0Nc3R-9EyagU5Cm1t2uKhzrDFueueuT3EutufLXzscM',
+  },
+  // iOS Safari "Smart App Banner": offers the App Store install (or Open) on every page.
+  itunes: {
+    appId: '6756967530',
   },
 };
 

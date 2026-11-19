@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import Header from '@/components/Header';
 import { useTranslation } from 'react-i18next';
+import { SITE_URL } from '@/lib/site';
 
 export default function PrivacyPolicyPage() {
   const { t, i18n } = useTranslation();
@@ -124,7 +125,7 @@ export default function PrivacyPolicyPage() {
               </p>
               <ul className="list-none text-gray-600 space-y-2">
                 <li><strong>Email:</strong> <a href="mailto:support@greenycorner.ae" className="text-green-600 hover:underline">support@greenycorner.ae</a></li>
-                <li><strong>Website:</strong> <a href="https://www.greenycorner.ae" className="text-green-600 hover:underline">www.greenycorner.ae</a></li>
+                <li><strong>Website:</strong> <a href={SITE_URL} className="text-green-600 hover:underline">{SITE_URL.replace('https://', '')}</a></li>
               </ul>
             </section>
           </div>
