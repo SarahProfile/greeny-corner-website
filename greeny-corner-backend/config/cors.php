@@ -23,6 +23,8 @@ return [
         'http://localhost:3000',
         'https://greenycorner.ae',
         'https://www.greenycorner.ae',
+        'https://greenycorner.com',
+        'https://www.greenycorner.com',
         'https://api.greenycorner.ae',
     ],
 
